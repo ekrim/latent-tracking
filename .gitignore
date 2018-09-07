@@ -1,3 +1,4 @@
+**/*.pytorch
 annotated_frames/
 augmented_samples/
 calibrations/

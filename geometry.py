@@ -7,6 +7,35 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
+HAND_CONNECT = np.array([
+  # index
+  [3, 2],
+  [2, 0],
+  [0, 1],
+  [1, 5],
+
+  [7, 6],
+  [6, 4],
+  [4, 5],
+  [5, 13],
+
+  [15, 14],
+  [14, 12],
+  [12, 13],
+  [13, 9],
+
+  [11, 10],
+  [10, 8],
+  [8, 9],
+
+  # thumb
+  [19, 18],
+  [18, 16],
+  [16, 17],
+  [17, 1],
+])
+
+
 def plot3d(x, col='b'):
   fig = plt.figure()
   ax = fig.add_subplot(111, projection='3d')
@@ -18,17 +47,27 @@ def plot3d(x, col='b'):
 
 
 def plot_skeleton(x):
-  fig = plt.figure()
-  ax = fig.add_subplot(111, projection='3d')
-  fingers = [1,2,3,4]
-  ax.plot(x[fingers, 0], x[fingers, 1], x[fingers, 2], '.')
-  ax.plot([x[0, 0]], [x[0, 1]], [x[0, 2]], 'g*')
-  ax.plot([x[5, 0]], [x[5, 1]], [x[5, 2]], 'rs')
-  for i in range(5):
-    ax.plot(x[[i,5], 0], x[[i,5], 1], x[[i,5], 2], 'b')
-  ax.set_xlabel('y')
-  ax.set_ylabel('x')
+  ax = plot3d(x)
+  for idx_pair in HAND_CONNECT:
+    ax.plot(x[idx_pair, 0], x[idx_pair, 1], x[idx_pair, 2], 'b')
+  ax.set_xlabel('x')
+  ax.set_ylabel('y')
   ax.set_zlabel('z')
+  ax.set_aspect('equal')
+
+  ranges = np.concatenate([ 
+    np.min(x, axis=0)[None,:],
+    np.max(x, axis=0)[None,:]], axis=0)
+
+  max_range = np.ceil(np.max(ranges[1] - ranges[0]))
+  mean_range = np.mean(ranges, axis=0)
+ 
+  new_range = np.concatenate([
+    (mean_range-max_range/2)[None,:],
+    (mean_range+max_range/2)[None,:],
+  ])
+  
+  ax.auto_scale_xyz(new_range[:,0], new_range[:,1], new_range[:,2])
   return ax
 
 
@@ -85,7 +124,10 @@ if __name__ == '__main__':
   print(joints_file)
   joints = pd.read_csv(joints_file, sep=' ', header=None)
   joints = np.array(joints.iloc[:,1:])
-  plot3d(joints)
+  plot_skeleton(joints)
+  
+  new_joints = rotate(joints, np.pi/2)
+  plot_skeleton(new_joints)
 
   plt.show()
 
