@@ -38,8 +38,11 @@ HAND_CONNECT = np.array([
 
 def load_joints(fn):
   joints = pd.read_csv(fn, sep=' ', header=None)
-  joints = np.float32(joints.iloc[:-1, 1:]).flatten()
-  return (joints - 33.55)/108.88
+  joints = np.array(joints.iloc[:-1, 1:])
+  axis_means = np.mean(joints, axis=0)
+  
+  #return (joints - 33.55)/108.88
+  return ((joints - axis_means[None,:])/(0.0001 + np.max(np.std(joints, axis=0)))).flatten().astype(np.float32)
 
 
 def plot3d(x, ax, col='b'):
@@ -93,7 +96,7 @@ def pts_over_depth(pts, depth):
 
   ax.imshow(rgba)
   
-  
+ 
 def rotate(x, theta, axis='x'):
   if axis == 'x':
     R = np.float32(

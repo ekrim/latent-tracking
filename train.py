@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Dataset, DataLoader
 
+from utils import all_joint_files
 import geometry as geo
 from model import RealNVP
 
@@ -53,11 +54,8 @@ def train(param, dim_in=63):
 
 class HandDataset(Dataset):
   def __init__(self):
-    seq_dir_list = glob('annotated_frames/data_*')
-    self.joint_files = [] 
-    for seq_dir in seq_dir_list:
-      self.joint_files += glob(os.path.join(seq_dir, '*_joints.txt'))
-  
+    self.joint_files = all_joint_files()
+
   def __len__(self):
     return len(self.joint_files)
     
