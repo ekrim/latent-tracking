@@ -36,9 +36,13 @@ HAND_CONNECT = np.array([
 ])
 
 
-def plot3d(x, col='b'):
-  fig = plt.figure()
-  ax = fig.add_subplot(111, projection='3d')
+def load_joints(fn):
+  joints = pd.read_csv(fn, sep=' ', header=None)
+  joints = np.float32(joints.iloc[:-1, 1:]).flatten()
+  return (joints - 33.55)/108.88
+
+
+def plot3d(x, ax, col='b'):
   ax.plot(x[:,0], x[:,1], x[:,2], '.'+col)
   ax.set_xlabel('y')
   ax.set_ylabel('x')
@@ -46,8 +50,11 @@ def plot3d(x, col='b'):
   return ax
 
 
-def plot_skeleton(x):
-  ax = plot3d(x)
+def plot_skeleton(x, ax, col='b'):
+  if x.shape[-1] != 3:
+    x = x.reshape((-1, 3))
+
+  ax = plot3d(x, ax, col=col)
   for idx_pair in HAND_CONNECT:
     ax.plot(x[idx_pair, 0], x[idx_pair, 1], x[idx_pair, 2], 'b')
   ax.set_xlabel('x')
@@ -124,7 +131,10 @@ if __name__ == '__main__':
   print(joints_file)
   joints = pd.read_csv(joints_file, sep=' ', header=None)
   joints = np.array(joints.iloc[:,1:])
-  plot_skeleton(joints)
+
+  fig = plt.figure()
+  ax = fig.add_subplot(111, projection='3d')
+  plot_skeleton(joints, ax)
   
   new_joints = rotate(joints, np.pi/2)
   plot_skeleton(new_joints)

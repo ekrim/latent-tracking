@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-from geometry import plot_skeleton
+import geometry as geo
 from model import RealNVP
 
 
@@ -62,10 +62,14 @@ class HandDataset(Dataset):
     return len(self.joint_files)
     
   def __getitem__(self, idx): 
-    joints = pd.read_csv(self.joint_files[idx], sep=' ', header=None)
-    joints = np.float32(joints.iloc[:-1, 1:]).flatten()
-    joints = (joints - 33.55)/108.88
-    return torch.from_numpy(joints)
+    joints = geo.load_joints(self.joint_files[idx])
+   
+    theta_x, theta_y, theta_z = -np.pi/2 + np.pi*np.random.rand(3)
+    joints = geo.rotate(joints.reshape((-1, 3)), theta_z, axis='z')
+    joints = geo.rotate(joints, theta_y, axis='y')
+    joints = geo.rotate(joints, theta_x, axis='x')
+    
+    return torch.from_numpy(joints.flatten())
 
 
 if __name__ == '__main__':
