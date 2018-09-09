@@ -133,3 +133,54 @@ class HierarchicalRealNVP(nn.Module):
     logp = self.prior.log_prob(z)
     x = self.g(z)
     return x
+
+
+class Flatten(nn.Module):
+  def __init__(self, size):
+    super().__init__()
+    self.size = size
+  
+  def forward(self, x):
+    return x.view(-1, self.size)
+
+
+class PoseModel(nn.Module):
+  def __init__(self):
+    super().__init__()
+    self.layers = nn.Sequential(
+      nn.AvgPool2d(2),
+      nn.Conv2d(1, 16, 3),
+      nn.LeakyReLU(), 
+      nn.AvgPool2d(3),
+      nn.BatchNorm2d(16),
+      nn.Conv2d(16, 32, 3),
+      nn.LeakyReLU(), 
+      nn.AvgPool2d(2),
+      nn.BatchNorm2d(32),
+      Flatten(512),
+      nn.Linear(512, 144),
+      nn.ReLU(),
+      nn.Linear(144, 144),
+      nn.ReLU(),
+      nn.Linear(144, 144),
+      nn.ReLU(),
+      nn.Linear(144, 144),
+      nn.ReLU(),
+      nn.Linear(144, 144),
+      nn.ReLU(),
+      nn.Linear(144, 63))
+    
+  def forward(self, x):
+    for lay in self.layers:
+      x = lay(x)
+    return x
+
+
+if __name__ == '__main__':
+  mod = PoseModel()
+  x = np.random.randn(4, 1, 64, 64).astype(np.float32)
+  x = torch.from_numpy(x)
+  print(x.shape)
+  output = mod(x)
+  print(output.detach().cpu().numpy())
+  print(output.shape)
