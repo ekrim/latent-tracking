@@ -1,8 +1,7 @@
 **/*.pytorch
-annotated_frames/
-augmented_samples/
-calibrations/
-utils/
+ICVL/
+LM/
+MRSA/
 **/__pycache__/
 **/*.pyc
 **/*.swp

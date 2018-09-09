@@ -1,5 +1,5 @@
 """TODO:
-- rotation direction... find vector to rotated pop DIRECTLY, not average
+- Find finger movement example
 """
 import sys
 import os
@@ -142,7 +142,6 @@ if __name__ == '__main__':
     ax = geo.plot_skeleton(x_bad, ax, col='r')
     ax = fig.add_subplot(133, projection='3d')
     ax = geo.plot_skeleton(jts, ax, col='r')
-    
     
 
   plt.show() 
