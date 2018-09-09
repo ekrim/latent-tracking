@@ -28,7 +28,7 @@ def train(param, dim_in=63):
     batch_size=param.batch_size,
     shuffle=True)
   
-  flow = RealNVP(dim_in, device) 
+  flow = RealNVP(device) 
   flow.to(device)
   flow.train()
 
