@@ -1,65 +1,84 @@
 import os
 import sys
 import PIL
+from collections import namedtuple
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-
-HAND_CONNECT = np.array([
-  # index
-  [3, 2],
-  [2, 0],
-  [0, 1],
-  [1, 5],
-
-  [7, 6],
-  [6, 4],
-  [4, 5],
-  [5, 13],
-
-  [15, 14],
-  [14, 12],
-  [12, 13],
-  [13, 9],
-
-  [11, 10],
-  [10, 8],
-  [8, 9],
-
-  # thumb
-  [19, 18],
-  [18, 16],
-  [16, 17],
-  [17, 1],
-])
+import data
 
 
-def load_joints(fn):
-  joints = pd.read_csv(fn, sep=' ', header=None)
-  joints = np.array(joints.iloc[:-1, 1:])
-  axis_means = np.mean(joints, axis=0)
-  
-  #return (joints - 33.55)/108.88
-  return ((joints - axis_means[None,:])/(0.0001 + np.max(np.std(joints, axis=0)))).flatten().astype(np.float32)
+JOINTS = 'wrist index_mcp index_pip index_dip index_tip middle_mcp middle_pip middle_dip middle_tip ring_mcp ring_pip ring_dip ring_tip little_mcp little_pip little_dip little_tip thumb_mcp thumb_pip thumb_dip thumb_tip'.split(' ')
+
+MS = 20
+MS2 = 30
+
+HandPart = namedtuple('HandPart', 'connections conn_color pts pt_color pt_size')
+
+INDEX = HandPart(
+  connections=np.array([[4,3], [3,2], [2,1]]),
+  conn_color='g',
+  pts=[1,2,3,4],
+  pt_color='g',
+  pt_size=MS)
+
+MIDDLE = HandPart(
+  connections=np.array([[8,7], [7,6], [6,5]]),
+  conn_color='m',
+  pts=[5,6,7,8],
+  pt_color='m',
+  pt_size=MS)
+
+RING = HandPart(
+  connections=np.array([[12,11], [11,10], [10,9]]),
+  conn_color='r',
+  pts=[9,10,11,12],
+  pt_color='r',
+  pt_size=MS)
+
+LITTLE = HandPart(
+  connections=np.array([[16,15], [15,14], [14,13]]),
+  conn_color='c',
+  pts=[13,14,15,16],
+  pt_color='c',
+  pt_size=MS)
+
+THUMB = HandPart(
+  connections=np.array([[20,19], [19,18], [18,17]]),
+  conn_color='y',
+  pts=[17,18,19,20],
+  pt_color='y',
+  pt_size=MS)
+
+WRIST = HandPart(
+  connections=np.array([[0,17], [0,1], [0,5], [0,9], [0,13]]),
+  conn_color='b',
+  pts=[0],
+  pt_color='b',
+  pt_size=MS2)
+
+HAND = [INDEX, MIDDLE, RING, LITTLE, THUMB, WRIST]
 
 
-def plot3d(x, ax, col='b'):
-  ax.plot(x[:,0], x[:,1], x[:,2], '.'+col)
+def plot3d(x, ax, col='b', ms=10):
+  ax.plot(x[:,0], x[:,1], x[:,2], '.'+col, markersize=ms)
   ax.set_xlabel('y')
   ax.set_ylabel('x')
   ax.set_zlabel('z')
   return ax
 
 
-def plot_skeleton(x, ax, col='b'):
+def plot_skeleton(x, ax):
   if x.shape[-1] != 3:
     x = x.reshape((-1, 3))
 
-  ax = plot3d(x, ax, col=col)
-  for idx_pair in HAND_CONNECT:
-    ax.plot(x[idx_pair, 0], x[idx_pair, 1], x[idx_pair, 2], 'b')
+  for obj in HAND:
+    ax = plot3d(x[obj.pts], ax, col=obj.pt_color, ms=obj.pt_size)
+    for idx_pair in obj.connections:
+      ax.plot(x[idx_pair, 0], x[idx_pair, 1], x[idx_pair, 2], obj.conn_color)
+
   ax.set_xlabel('x')
   ax.set_ylabel('y')
   ax.set_zlabel('z')
@@ -81,20 +100,58 @@ def plot_skeleton(x, ax, col='b'):
   return ax
 
 
-def pts_over_depth(pts, depth):
-  fig = plt.figure()
-  ax = fig.add_subplot(111)
-  ax.imshow(depth)
+def plot_skeleton2d(x, ax):
+  if x.shape[-1] != 3:
+    x = x.reshape((-1, 3))
 
-  masked = np.max(pts, axis=2) 
-  masked[masked < 0.4] = 0.0
+  for obj in HAND:
+    ax.plot(x[obj.pts, 0], x[obj.pts, 1], '.'+obj.pt_color, markersize=obj.pt_size)
+    for idx_pair in obj.connections:
+      ax.plot(x[idx_pair, 0], x[idx_pair, 1], obj.conn_color)
 
-  rgba = np.concatenate([
-    masked[:,:,None],
-    np.zeros(depth.shape+(2,)),
-    masked[:,:,None]], axis=2)
+  ax.set_xlabel('x')
+  ax.set_ylabel('y')
+  ax.set_aspect('equal')
 
-  ax.imshow(rgba)
+  ranges = np.concatenate([ 
+    np.min(x, axis=0)[None,:],
+    np.max(x, axis=0)[None,:]], axis=0)
+
+  max_range = np.ceil(np.max(ranges[1] - ranges[0]))
+  mean_range = np.mean(ranges, axis=0)
+ 
+  new_range = np.concatenate([
+    (mean_range-max_range/2)[None,:],
+    (mean_range+max_range/2)[None,:],
+  ])
+  
+  ax.set_xlim(new_range[:,0])  
+  ax.set_ylim(new_range[:,1])  
+  return ax
+
+
+def joints_over_depth(jts, img, ax):
+  #ax.imshow(img.transpose(PIL.Image.FLIP_TOP_BOTTOM))
+  ax.imshow(img[::-1,:], cmap='Greys_r')
+
+  n_rows, n_cols = img.shape
+
+  new_jts = jts.copy().reshape((-1,3))
+  new_jts = normalize_dim(new_jts, n_cols, 0)
+  new_jts = normalize_dim(new_jts, n_rows, 1)
+  
+  plot_skeleton2d(new_jts, ax)
+  return ax
+
+
+def normalize_dim(x, goal_max, dim):
+  min_val = np.min(x[:,dim])
+  x -= min_val
+  max_val = np.max(x[:,dim])
+  x = x/max_val
+  x *= goal_max
+  
+  return x
   
  
 def rotate(x, theta, axis='x'):
@@ -118,30 +175,21 @@ def rotate(x, theta, axis='x'):
 
 
 if __name__ == '__main__':
-  i_seq = int(sys.argv[1])
-  i_frame = int(sys.argv[2])
-
-  path = './annotated_frames/data_{:d}/'.format(i_seq)
-  image_files = [os.path.join(path, '{:d}_webcam_{:d}.jpg'.format(i_frame, i_cam)) for i_cam in range(1,5)]
-  joints_file = os.path.join(path, '{:d}_joints.txt'.format(i_frame)) 
-
-  for fn in image_files:
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    img = PIL.Image.open(fn)
-    ax.imshow(img)
-
-  print(joints_file)
-  joints = pd.read_csv(joints_file, sep=' ', header=None)
-  joints = np.array(joints.iloc[:,1:])
-
+  subject = sys.argv[1]
+  sequence = sys.argv[2]
+  
+  joint_file = 'MRSA/{}/{}/joint.txt'.format(subject, sequence)
+  print(joint_file)
+  jts = data.load_joints(joint_file)
+  
   fig = plt.figure()
   ax = fig.add_subplot(111, projection='3d')
-  plot_skeleton(joints, ax)
-  
-  new_joints = rotate(joints, np.pi/2)
-  plot_skeleton(new_joints)
+  plot_skeleton(jts[0], ax)
 
+  img = PIL.Image.open('MRSA/P4/9/000000_depth.jpg')
+
+  fig = plt.figure()
+  ax = fig.add_subplot(111)
+  ax = joints_over_depth(jts, img, ax)
   plt.show()
-
-
+  

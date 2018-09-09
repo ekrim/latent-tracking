@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-from utils import all_joint_files
+from data import MRSADataset
 import geometry as geo
 from model import RealNVP
 
@@ -21,14 +21,14 @@ def train(param, dim_in=63):
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   print(device)
 
-  ds = HandDataset()
+  ds = MRSADataset(image=False)
   dl = DataLoader(
     ds,
     num_workers=4,
     batch_size=param.batch_size,
     shuffle=True)
   
-  flow = RealNVP(device) 
+  flow = RealNVP(dim_in, device) 
   flow.to(device)
   flow.train()
 

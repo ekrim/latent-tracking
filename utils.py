@@ -2,7 +2,18 @@ import os
 import sys
 from glob import glob
 import numpy as np
+import torch
 
+
+def load_model(mod, mod_file, device):
+  if device.type == 'cpu':
+    mod.load_state_dict(torch.load(mod_file, map_location='cpu'))
+  else:
+    mod.load_state_dict(torch.load(mod_file))
+
+  mod.to(device)
+  mod.eval()
+  return mod
 
 def stack(lst):
   lst = [jts.reshape((1,-1)) for jts in lst]

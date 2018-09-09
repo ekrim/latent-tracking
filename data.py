@@ -84,7 +84,6 @@ class MRSADataset(Dataset):
       return jts_tens
 
 
-
 if __name__ == '__main__':
 
   ds = MRSADataset(image=True) 

@@ -9,47 +9,71 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
 
 import utils
 import geometry as geo
-from model import RealNVP
+from data import MRSADataset
+from model import RealNVP, PoseModel
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument('--model', default='flow_model.pytorch', help='trained RealNVP model')
+  parser.add_argument('--flow_model', default='flow_model.pytorch', help='trained RealNVP model')
+  parser.add_argument('--pose_model', default='pose_model.pytorch', help='trained pose model')
   parser.add_argument('--dim_in', default=63, type=int, help='dimensionality of input data')
-  parser.add_argument('--display', action='store_true', help='generate samples and display them')
+  parser.add_argument('--display_pose', action='store_true', help='display pose estimates')
+  parser.add_argument('--display_flow', action='store_true', help='generate synthetic poses and display them')
   parser.add_argument('--interpolate', action='store_true', help='run interpolation experiment')
   parser.add_argument('--rotation', action='store_true', help='run rotation semantiic direction experiment')
   parser.add_argument('--inverse_kinematics', action='store_true', help='run inverse kinematics experiment')
   args = parser.parse_args(sys.argv[1:])
 
-  joint_files = utils.all_joint_files()    
-
+  dim_in = args.dim_in
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-  flow = RealNVP(args.dim_in, device)
-  if device.type == 'cpu':
-    flow.load_state_dict(torch.load(args.model, map_location='cpu'))
-  else:
-    flow.load_state_dict(torch.load(args.model))
+  flow_mod = RealNVP(args.dim_in, device)
+  flow_mod = utils.load_model(flow_mod, args.flow_model, device)
 
-  flow.to(device)
-  flow.eval()
+  pose_mod = PoseModel()
+  pose_mod = utils.load_model(pose_mod, args.pose_model, device)
 
-  gen_fnc = lambda z: flow.g(torch.from_numpy(z.astype(np.float32)).to(device)).detach().cpu().numpy()
-  enc_fnc = lambda x: flow.f(torch.from_numpy(x.astype(np.float32)).to(device))[0].detach().cpu().numpy()
+  gen_fnc = lambda z: flow_mod.g(torch.from_numpy(z.astype(np.float32)).to(device)).detach().cpu().numpy()
+  enc_fnc = lambda x: flow_mod.f(torch.from_numpy(x.astype(np.float32)).to(device))[0].detach().cpu().numpy()
+ 
+  pose_fnc = lambda x: pose_mod(x.to(device)).detach().cpu().numpy() 
+
   
-  
-  if args.display:
-    # display generated
-    hand_pose = gen_fnc(np.random.randn(9, 63))
+  if args.display_flow:
+    # display generated poses
+    hand_pose = gen_fnc(np.random.randn(9, dim_in))
     
     fig = plt.figure()
     for i in range(9):
       ax = fig.add_subplot('33{:d}'.format(i+1), projection='3d')
       geo.plot_skeleton(hand_pose[i], ax, col='b')
+
+
+  if args.display_pose:
+    idx = 0
+    subject = 'P0'
+    gesture = 'T'
+    # regress poses and display
+    ds = MRSADataset(subjects=[subject], gestures=[gesture], max_buffer=8, image=True)
+    dl = DataLoader(
+      ds,
+      num_workers=2,
+      batch_size=500,
+      shuffle=False)
+
+    batch = dl.__iter__().__next__()
+    pred_pose = pose_fnc(batch['img'])[idx]
+    true_pose = batch['jts'].detach().cpu().numpy()[idx]
+    img = batch['img'].detach().cpu().numpy()[idx,0]
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    geo.joints_over_depth(true_pose, img, ax)
 
 
   if args.interpolate:   
