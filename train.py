@@ -52,24 +52,6 @@ def train(param, dim_in=63):
     torch.save(flow.state_dict(), 'flow_model.pytorch')
 
 
-class HandDataset(Dataset):
-  def __init__(self):
-    self.joint_files = all_joint_files()
-
-  def __len__(self):
-    return len(self.joint_files)
-    
-  def __getitem__(self, idx): 
-    joints = geo.load_joints(self.joint_files[idx])
-   
-    theta_x, theta_y, theta_z = -np.pi/2 + np.pi*np.random.rand(3)
-    joints = geo.rotate(joints.reshape((-1, 3)), theta_z, axis='z')
-    joints = geo.rotate(joints, theta_y, axis='y')
-    joints = geo.rotate(joints, theta_x, axis='x')
-    
-    return torch.from_numpy(joints.flatten())
-
-
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--batch_size', default=64, type=int, help='batch size')
