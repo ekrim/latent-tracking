@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 
 import utils
 import geometry as geo
-from data import MRSADataset
+from data import MRSADataset, SUBJECTS, GESTURES
 from model import RealNVP, PoseModel
 
 
@@ -45,21 +45,26 @@ if __name__ == '__main__':
 
   
   if args.display_flow:
+    n_plots = 9
     # display generated poses
-    hand_pose = gen_fnc(np.random.randn(9, dim_in))
+    hand_pose = gen_fnc(np.random.randn(n_plots, dim_in))
     
     fig = plt.figure()
-    for i in range(9):
-      ax = fig.add_subplot('33{:d}'.format(i+1), projection='3d')
-      geo.plot_skeleton(hand_pose[i], ax, col='b')
+    for i in range(n_plots):
+      ax = fig.add_subplot('33{:d}'.format(i+1))
+      geo.plot_skeleton2d(hand_pose[i], ax, autoscale=False)
 
 
   if args.display_pose:
-    idx = 0
-    subject = 'P0'
-    gesture = 'T'
+    idx = np.random.randint(0, 500)
+    print(idx)
+    subject = np.random.choice(SUBJECTS)
+    print(subject)
+    gesture = np.random.choice(GESTURES)
+    print(gesture)
+
     # regress poses and display
-    ds = MRSADataset(subjects=[subject], gestures=[gesture], max_buffer=8, image=True)
+    ds = MRSADataset(subjects=[subject], gestures=[gesture], max_buffer=4, image=True)
     dl = DataLoader(
       ds,
       num_workers=2,
@@ -67,13 +72,24 @@ if __name__ == '__main__':
       shuffle=False)
 
     batch = dl.__iter__().__next__()
-    pred_pose = pose_fnc(batch['img'])[idx]
-    true_pose = batch['jts'].detach().cpu().numpy()[idx]
-    img = batch['img'].detach().cpu().numpy()[idx,0]
+    pred_pose = pose_fnc(batch['img'])
+    true_pose = batch['jts'].detach().cpu().numpy()
+    img = batch['img'].detach().cpu().numpy()
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    geo.joints_over_depth(true_pose, img, ax)
+    for i in range(3):
+
+      fig = plt.figure()
+      ax = fig.add_subplot(131)
+      ax = geo.plot_skeleton2d(pred_pose[idx+1], ax, autoscale=False)
+      ax.set_xlim([-0.8, 0.8])
+      ax.set_ylim([-0.8, 0.8])
+      ax = fig.add_subplot(132)
+      ax = geo.plot_skeleton2d(true_pose[idx+1], ax, autoscale=False)
+      ax.set_xlim([-0.8, 0.8])
+      ax.set_ylim([-0.8, 0.8])
+      ax = fig.add_subplot(133)
+      ax.imshow(np.clip(img[idx,0], 0.9, 1), cmap='Greys_r')
+      #geo.joints_over_depth(true_pose, img, ax)
 
 
   if args.interpolate:   

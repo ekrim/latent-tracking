@@ -45,7 +45,7 @@ def load_joints(f):
 
 
 class MRSADataset(Dataset):
-  def __init__(self, subjects=None, gestures=None, image=False, max_buffer=20, size=64):
+  def __init__(self, subjects=None, gestures=None, image=False, max_buffer=4, size=64):
     subjects = SUBJECTS if subjects is None else subjects
     gestures = GESTURES if gestures is None else gestures
 
@@ -58,8 +58,11 @@ class MRSADataset(Dataset):
     return len(self.depth_files)
     
   def __getitem__(self, idx): 
-
-    jts_tens = torch.from_numpy(self.joints[idx])
+  
+    jts = self.joints[idx].reshape((-1,3))
+    jts -= np.mean(jts, axis=0)[None,:]
+    jts = jts/80
+    jts_tens = torch.from_numpy(jts.flatten())
 
     if self.image:
       img = load_image_bin(self.depth_files[idx])
@@ -70,7 +73,7 @@ class MRSADataset(Dataset):
       delta_width = max_dim - width 
       delta_height = max_dim - height
       
-      left = np.random.randint(0, delta_width+1)
+      left = np.random.randint(0, np.ceil(delta_width+1/2))
       top = np.random.randint(0, delta_height+1)
 
       padded = F.pad(pil_img, (left, top, delta_width-left, delta_height-top))

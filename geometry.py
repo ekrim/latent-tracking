@@ -100,7 +100,7 @@ def plot_skeleton(x, ax):
   return ax
 
 
-def plot_skeleton2d(x, ax):
+def plot_skeleton2d(x, ax, autoscale=True):
   if x.shape[-1] != 3:
     x = x.reshape((-1, 3))
 
@@ -113,20 +113,21 @@ def plot_skeleton2d(x, ax):
   ax.set_ylabel('y')
   ax.set_aspect('equal')
 
-  ranges = np.concatenate([ 
-    np.min(x, axis=0)[None,:],
-    np.max(x, axis=0)[None,:]], axis=0)
+  if autoscale:
+    ranges = np.concatenate([ 
+      np.min(x, axis=0)[None,:],
+      np.max(x, axis=0)[None,:]], axis=0)
 
-  max_range = np.ceil(np.max(ranges[1] - ranges[0]))
-  mean_range = np.mean(ranges, axis=0)
- 
-  new_range = np.concatenate([
-    (mean_range-max_range/2)[None,:],
-    (mean_range+max_range/2)[None,:],
-  ])
-  
-  ax.set_xlim(new_range[:,0])  
-  ax.set_ylim(new_range[:,1])  
+    max_range = np.ceil(np.max(ranges[1] - ranges[0]))
+    mean_range = np.mean(ranges, axis=0)
+   
+    new_range = np.concatenate([
+      (mean_range-max_range/2)[None,:],
+      (mean_range+max_range/2)[None,:],
+    ])
+    
+    ax.set_xlim(new_range[:,0])  
+    ax.set_ylim(new_range[:,1])  
   return ax
 
 
@@ -135,21 +136,36 @@ def joints_over_depth(jts, img, ax):
   ax.imshow(img[::-1,:], cmap='Greys_r')
 
   n_rows, n_cols = img.shape
+  
+  bounds = find_bounds(img)
 
   new_jts = jts.copy().reshape((-1,3))
-  new_jts = normalize_dim(new_jts, n_cols, 0)
-  new_jts = normalize_dim(new_jts, n_rows, 1)
+
+  new_jts = normalize_dim(new_jts, bounds[3], bounds[1], 1)
+  x_min = np.min(new_jts[:,0])
+  new_jts[:,0] += bounds[0] - x_min
   
-  plot_skeleton2d(new_jts, ax)
+  plot_skeleton2d(new_jts, ax, autoscale=False)
   return ax
 
 
-def normalize_dim(x, goal_max, dim):
+def find_bounds(img, thresh=0.7):
+  truth = img > thresh  
+  col_bounds = np.arange(img.shape[1])[np.any(truth, axis=0)][[0,-1]]
+  row_bounds = np.arange(img.shape[0])[np.any(truth, axis=1)][[0,-1]]
+  return col_bounds[0], img.shape[0]-row_bounds[0], col_bounds[1], img.shape[0]-row_bounds[1]
+
+
+def normalize_dim(x, goal_min, goal_max, dim):
+  # put in [0,1]
   min_val = np.min(x[:,dim])
   x -= min_val
   max_val = np.max(x[:,dim])
   x = x/max_val
-  x *= goal_max
+
+  mag = goal_max - goal_min
+  x *= mag
+  x[:,dim] += goal_min
   
   return x
   
