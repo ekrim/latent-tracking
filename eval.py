@@ -45,18 +45,20 @@ if __name__ == '__main__':
 
   
   if args.display_flow:
-    n_plots = 9
+    n_plots = 4
     # display generated poses
     hand_pose = gen_fnc(np.random.randn(n_plots, dim_in))
     
     fig = plt.figure()
     for i in range(n_plots):
-      ax = fig.add_subplot('33{:d}'.format(i+1))
+      ax = fig.add_subplot('22{:d}'.format(i+1))
       geo.plot_skeleton2d(hand_pose[i], ax, autoscale=False)
+      ax.set_xlim([-0.8, 0.8])
+      ax.set_ylim([-0.8, 0.8])
 
 
   if args.display_pose:
-    idx = np.random.randint(0, 500)
+    idx = np.random.randint(0, 1)
     print(idx)
     subject = np.random.choice(SUBJECTS)
     print(subject)
@@ -76,21 +78,21 @@ if __name__ == '__main__':
     true_pose = batch['jts'].detach().cpu().numpy()
     img = batch['img'].detach().cpu().numpy()
 
-    for i in range(3):
-
+    for i in range(400):
       fig = plt.figure()
       ax = fig.add_subplot(131)
-      ax = geo.plot_skeleton2d(pred_pose[idx+1], ax, autoscale=False)
+      ax = geo.plot_skeleton2d(pred_pose[idx+i], ax, autoscale=False)
       ax.set_xlim([-0.8, 0.8])
       ax.set_ylim([-0.8, 0.8])
       ax = fig.add_subplot(132)
-      ax = geo.plot_skeleton2d(true_pose[idx+1], ax, autoscale=False)
+      ax = geo.plot_skeleton2d(true_pose[idx+i], ax, autoscale=False)
       ax.set_xlim([-0.8, 0.8])
       ax.set_ylim([-0.8, 0.8])
       ax = fig.add_subplot(133)
-      ax.imshow(np.clip(img[idx,0], 0.9, 1), cmap='Greys_r')
+      ax.imshow(np.clip(img[idx+i,0], 0.9, 1), cmap='Greys_r')
       #geo.joints_over_depth(true_pose, img, ax)
-
+      plt.savefig('pic_{:03d}.png'.format(i))
+      plt.close(fig)
 
   if args.interpolate:   
     # interpolation in latent space
