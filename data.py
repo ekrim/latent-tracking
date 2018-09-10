@@ -44,6 +44,15 @@ def load_joints(f):
   return np.float32(jts)
 
 
+def get_hand(subject, gesture, idx=0):
+  ds = MSRADataset(subjects=[subject], gestures=[gesture], max_buffer=4, image=True)
+  dl = DataLoader(ds, batch_size=idx+1, shuffle=False)
+  batch = dl.__iter__().__next__()
+  pose = batch['jts'].detach().cpu().numpy()[idx]
+  img = batch['img'].detach().cpu().numpy()[idx,0]
+  return img, pose
+
+
 class MSRADataset(Dataset):
   def __init__(self, subjects=None, gestures=None, image=False, max_buffer=4, size=64):
     subjects = SUBJECTS if subjects is None else subjects

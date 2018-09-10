@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 
 import geometry as geo
 import kf
-from data import MSRADataset, SUBJECTS, GESTURES
+from data import MSRADataset, SUBJECTS, GESTURES, get_hand
 from model import RealNVP, PoseModel
 
 
@@ -26,7 +26,7 @@ if __name__ == '__main__':
   parser.add_argument('--filter_pose', action='store_true', help='kalman filter pose smoothing')
   parser.add_argument('--display_flow', action='store_true', help='generate synthetic poses and display them')
   parser.add_argument('--interpolate', action='store_true', help='run interpolation experiment')
-  parser.add_argument('--rotation', action='store_true', help='run rotation semantiic direction experiment')
+  parser.add_argument('--neighborhood', action='store_true', help='run neighborhood generation')
   parser.add_argument('--inverse_kinematics', action='store_true', help='run inverse kinematics experiment')
   args = parser.parse_args(sys.argv[1:])
 
@@ -68,11 +68,7 @@ if __name__ == '__main__':
 
     # regress poses and display
     ds = MSRADataset(subjects=[subject], gestures=[gesture], max_buffer=4, image=True)
-    dl = DataLoader(
-      ds,
-      num_workers=2,
-      batch_size=500,
-      shuffle=False)
+    dl = DataLoader(ds, batch_size=500, shuffle=False)
 
     batch = dl.__iter__().__next__()
     pred_pose = pose_fnc(batch['img'])
@@ -84,38 +80,27 @@ if __name__ == '__main__':
     if args.filter_pose:
       dt = 0.1
 
-      z_param = {
-        'P': 0.5,
-        'Q': 15.0,
-        'R': 10.0,
-        'dt': dt}
+      # Q = 15
+      P, Q, R = 0.5, 20.0, 10.0
+      z_param = {'P': P, 'Q': Q, 'R': R, 'dt': dt}
+      x_param = {'P': P, 'Q': Q, 'R': R, 'dt': dt}
 
-      x_param = {
-        'P': 0.5,
-        'Q': 15.0,
-        'R': 10.0,
-        'dt': dt}
-     
       z_smooth = kf.kalman_filter3d(z_pose, **z_param)
       latent_smoothed = gen_fnc(z_smooth)
       input_smoothed = kf.kalman_filter3d(pred_pose, **x_param)
       plt_img, plt_true, plt_pred, plt_zkf, plt_xkf = 231, 232, 234, 235, 236
-
-    def lim_axes(ax, lim=[-0.8, 0.8]):
-      ax.set_xlim(lim)
-      ax.set_ylim(lim)
 
     for i in range(400):
       fig = plt.figure()
 
       ax = fig.add_subplot(plt_pred)
       ax = geo.plot_skeleton2d(pred_pose[idx+i], ax, autoscale=False)
-      lim_axes(ax)
+      geo.lim_axes(ax)
       ax.set_title('Predicted')
 
       ax = fig.add_subplot(plt_true)
       ax = geo.plot_skeleton2d(true_pose[idx+i], ax, autoscale=False)
-      lim_axes(ax)
+      geo.lim_axes(ax)
       ax.set_title('True')
 
       ax = fig.add_subplot(plt_img)
@@ -125,55 +110,103 @@ if __name__ == '__main__':
       if args.filter_pose:
         ax = fig.add_subplot(plt_zkf)
         ax = geo.plot_skeleton2d(latent_smoothed[idx+i], ax, autoscale=False)
-        lim_axes(ax)
+        geo.lim_axes(ax)
         ax.set_title('Z KF smoothed')
 
         ax = fig.add_subplot(plt_xkf)
         ax = geo.plot_skeleton2d(input_smoothed[idx+i], ax, autoscale=False)
-        lim_axes(ax)
+        geo.lim_axes(ax)
         ax.set_title('KF smoothed')
 
-      plt.savefig('pic_{:03d}.png'.format(i))
+      plt.savefig('pose_{:03d}.png'.format(i))
       plt.close(fig)
 
 
-  if args.interpolate:   
-    # interpolation in latent space
-    joint_f1, img_f1 = geo.img_and_joint_files(5, 33)
-    joint_f2, img_f2 = geo.img_and_joint_files(10, 522)
+  if args.neighborhood:
+    n_neigh, idx = 8, 100
+    std = 0.4
+    subject = 'P1'
+    seq = 'TIP'
 
-    pose1 = geo.load_joints(joint_f1)
-    pose2 = geo.load_joints(joint_f2)
+    img, pose = get_hand(subject, seq, idx=idx)
+
+    z = enc_fnc(pose[None,:])
+    z_neigh = z + std * np.random.randn(n_neigh, z.shape[1])
+    neighbors = gen_fnc(z_neigh) 
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(335)
+    ax.imshow(np.clip(img, 0.9, 1), cmap='Greys_r')
+    ax.set_title('Starting pose')
+
+    for i, i_plt in enumerate([1,2,3,4,6,7,8,9]):
+      ax = fig.add_subplot('33{}'.format(i_plt))
+      ax = geo.plot_skeleton2d(neighbors[i], ax, autoscale=False)
+      geo.lim_axes(ax)
+
+
+  if args.interpolate:   
+    n_interp, idx = 100, 130
+    subject = 'P0'
+    seq1 = '5'
+    seq2 = '5'
+    
+    img1, pose1 = get_hand(subject, seq1, idx=idx)
+    img2, pose2 = get_hand(subject, seq2, idx=idx)
+
+    pose2 = geo.rotate(pose2.reshape((-1, 3)), np.pi, axis='y').flatten()
 
     # interp in latent space
     z = enc_fnc(geo.stack([pose1, pose2]))
-    z_interp = geo.interpolate(z, 9) 
-    pose_interp = gen_fnc(z_interp)
-
-    fig = plt.figure()
-    for i in range(9):
-      ax = fig.add_subplot('33{:d}'.format(i+1), projection='3d')
-      geo.plot_skeleton(pose_interp[i], ax, col='r')
+    z_interp = geo.interpolate(z, n_interp) 
+    latent_interp = gen_fnc(z_interp)
 
     # interp in data space
-    x_interp = geo.interpolate(geo.stack([pose1, pose2]), 9)
+    x_interp = geo.interpolate(geo.stack([pose1, pose2]), n_interp)
+ 
 
     fig = plt.figure()
-    for i in range(9):
-      ax = fig.add_subplot('33{:d}'.format(i+1), projection='3d')
-      geo.plot_skeleton(x_interp[i], ax, col='r')
- 
-    # show images
-    fig = plt.figure()
-    ax = fig.add_subplot(211)
-    img = PIL.Image.open(img_f1)
-    ax.imshow(img)
-    ax = fig.add_subplot(212)
-    img = PIL.Image.open(img_f2)
-    ax.imshow(img)
-  
-  
-  if args.rotation:
+
+    ax = fig.add_subplot(121)
+    ax.imshow(np.clip(img1, 0.9, 1), cmap='Greys_r')
+    ax.set_title('Starting pose')
+
+    ax = fig.add_subplot(122)
+    ax.imshow(np.clip(img2, 0.9, 1), cmap='Greys_r')
+    ax.set_title('Final pose')
+
+    for i in range(n_interp):
+      fig = plt.figure()
+     
+      ax = fig.add_subplot(221, projection='3d')
+      ax = geo.plot_skeleton3d(latent_interp[i], ax, autoscale=False)
+      geo.lim_axes3d(ax)
+      ax.set_title('Latent interp')
+      ax.view_init(elev=30, azim=30)
+
+      ax = fig.add_subplot(222, projection='3d')
+      ax = geo.plot_skeleton3d(x_interp[i], ax, autoscale=False)
+      geo.lim_axes3d(ax)
+      ax.set_title('Data interp')
+      ax.view_init(elev=30, azim=30)
+
+      ax = fig.add_subplot(223, projection='3d')
+      ax = geo.plot_skeleton3d(latent_interp[i], ax, autoscale=False)
+      geo.lim_axes3d(ax)
+      ax.set_title('Latent interp')  
+      ax.view_init(elev=80, azim=30)
+
+      ax = fig.add_subplot(224, projection='3d')
+      ax = geo.plot_skeleton3d(x_interp[i], ax, autoscale=False)
+      geo.lim_axes3d(ax)
+      ax.set_title('Data interp')
+      ax.view_init(elev=80, azim=30)
+
+      plt.savefig('interp_{:03d}.png'.format(i))
+      plt.close(fig)
+
+
+  if False:
     # find direction of rotation in latent space
     n_samples = 1000
     joint_file_sample = np.random.choice(joint_files, n_samples, replace=False)

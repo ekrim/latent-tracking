@@ -7,8 +7,8 @@ class RealNVP(nn.Module):
   def __init__(self, dim_in, device):
     super(RealNVP, self).__init__()
 
-    n_hid = 256
-    n_mask = 10
+    n_hid = 128
+    n_mask = 6
     
     nets = lambda: nn.Sequential(
       nn.Linear(dim_in, n_hid), 

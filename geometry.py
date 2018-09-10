@@ -71,7 +71,7 @@ def plot3d(x, ax, col='b', ms=10):
   return ax
 
 
-def plot_skeleton(x, ax):
+def plot_skeleton3d(x, ax, autoscale=True):
   if x.shape[-1] != 3:
     x = x.reshape((-1, 3))
 
@@ -85,19 +85,20 @@ def plot_skeleton(x, ax):
   ax.set_zlabel('z')
   ax.set_aspect('equal')
 
-  ranges = np.concatenate([ 
-    np.min(x, axis=0)[None,:],
-    np.max(x, axis=0)[None,:]], axis=0)
+  if autoscale:
+    ranges = np.concatenate([ 
+      np.min(x, axis=0)[None,:],
+      np.max(x, axis=0)[None,:]], axis=0)
 
-  max_range = np.ceil(np.max(ranges[1] - ranges[0]))
-  mean_range = np.mean(ranges, axis=0)
+    max_range = np.ceil(np.max(ranges[1] - ranges[0]))
+    mean_range = np.mean(ranges, axis=0)
  
-  new_range = np.concatenate([
-    (mean_range-max_range/2)[None,:],
-    (mean_range+max_range/2)[None,:],
-  ])
-  
-  ax.auto_scale_xyz(new_range[:,0], new_range[:,1], new_range[:,2])
+    new_range = np.concatenate([
+      (mean_range-max_range/2)[None,:],
+      (mean_range+max_range/2)[None,:],
+    ])
+    
+    ax.auto_scale_xyz(new_range[:,0], new_range[:,1], new_range[:,2])
   return ax
 
 
@@ -202,6 +203,17 @@ def load_model(mod, mod_file, device):
   return mod
 
 
+def lim_axes(ax, lim=[-0.8, 0.8]):
+  ax.set_xlim(lim)
+  ax.set_ylim(lim)
+
+
+def lim_axes3d(ax, lim=[-0.8, 0.8]):
+  ax.set_xlim(lim)
+  ax.set_ylim(lim)
+  ax.set_zlim(lim)
+ 
+
 def stack(lst):
   lst = [jts.reshape((1,-1)) for jts in lst]
   return np.concatenate(lst, axis=0)
@@ -225,7 +237,7 @@ if __name__ == '__main__':
   
   fig = plt.figure()
   ax = fig.add_subplot(111, projection='3d')
-  plot_skeleton(jts[0], ax)
+  plot_skeleton3d(jts[0], ax)
 
   img = PIL.Image.open('MSRA/P4/9/000000_depth.jpg')
 
