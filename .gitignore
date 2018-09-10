@@ -1,7 +1,7 @@
 **/*.bin
 ICVL/
 LM/
-MRSA/
+MSRA/
 **/__pycache__/
 **/*.pyc
 **/*.swp

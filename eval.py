@@ -11,10 +11,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
-import utils
 import geometry as geo
 import kf
-from data import MRSADataset, SUBJECTS, GESTURES
+from data import MSRADataset, SUBJECTS, GESTURES
 from model import RealNVP, PoseModel
 
 
@@ -35,10 +34,10 @@ if __name__ == '__main__':
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
   flow_mod = RealNVP(args.dim_in, device)
-  flow_mod = utils.load_model(flow_mod, args.flow_model, device)
+  flow_mod = geo.load_model(flow_mod, args.flow_model, device)
 
   pose_mod = PoseModel()
-  pose_mod = utils.load_model(pose_mod, args.pose_model, device)
+  pose_mod = geo.load_model(pose_mod, args.pose_model, device)
 
   gen_fnc = lambda z: flow_mod.g(torch.from_numpy(z.astype(np.float32)).to(device)).detach().cpu().numpy()
   enc_fnc = lambda x: flow_mod.f(torch.from_numpy(x.astype(np.float32)).to(device))[0].detach().cpu().numpy()
@@ -68,7 +67,7 @@ if __name__ == '__main__':
     print(gesture)
 
     # regress poses and display
-    ds = MRSADataset(subjects=[subject], gestures=[gesture], max_buffer=4, image=True)
+    ds = MSRADataset(subjects=[subject], gestures=[gesture], max_buffer=4, image=True)
     dl = DataLoader(
       ds,
       num_workers=2,
@@ -140,15 +139,15 @@ if __name__ == '__main__':
 
   if args.interpolate:   
     # interpolation in latent space
-    joint_f1, img_f1 = utils.img_and_joint_files(5, 33)
-    joint_f2, img_f2 = utils.img_and_joint_files(10, 522)
+    joint_f1, img_f1 = geo.img_and_joint_files(5, 33)
+    joint_f2, img_f2 = geo.img_and_joint_files(10, 522)
 
     pose1 = geo.load_joints(joint_f1)
     pose2 = geo.load_joints(joint_f2)
 
     # interp in latent space
-    z = enc_fnc(utils.stack([pose1, pose2]))
-    z_interp = utils.interpolate(z, 9) 
+    z = enc_fnc(geo.stack([pose1, pose2]))
+    z_interp = geo.interpolate(z, 9) 
     pose_interp = gen_fnc(z_interp)
 
     fig = plt.figure()
@@ -157,7 +156,7 @@ if __name__ == '__main__':
       geo.plot_skeleton(pose_interp[i], ax, col='r')
 
     # interp in data space
-    x_interp = utils.interpolate(utils.stack([pose1, pose2]), 9)
+    x_interp = geo.interpolate(geo.stack([pose1, pose2]), 9)
 
     fig = plt.figure()
     for i in range(9):

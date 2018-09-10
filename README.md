@@ -18,7 +18,7 @@ MSRA dataset courtesy of:
 
 Xiao Sun, Yichen Wei, Shuang Liang, Xiaoou Tang and Jian Sun. Cascaded Hand Pose Regression. IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2015
 
-Train the models and run the experiments:
+Run the experiments (pretrained models present in `models/`):
 ```
 python train_pose.py
 python train_flow.py

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import torch
 
 import data
 
@@ -190,11 +191,35 @@ def rotate(x, theta, axis='x'):
   return np.dot(R, x.transpose()).transpose()
 
 
+def load_model(mod, mod_file, device):
+  if device.type == 'cpu':
+    mod.load_state_dict(torch.load(mod_file, map_location='cpu'))
+  else:
+    mod.load_state_dict(torch.load(mod_file))
+
+  mod.to(device)
+  mod.eval()
+  return mod
+
+
+def stack(lst):
+  lst = [jts.reshape((1,-1)) for jts in lst]
+  return np.concatenate(lst, axis=0)
+
+
+def interpolate(x, n):
+  out = np.zeros((n, x.shape[1])).astype(np.float32)
+  wts = np.linspace(0, 1, n)
+  for i, wt in enumerate(wts):
+    out[i] = x[0] + wt*(x[1] - x[0])
+  return out
+
+
 if __name__ == '__main__':
   subject = sys.argv[1]
   sequence = sys.argv[2]
   
-  joint_file = 'MRSA/{}/{}/joint.txt'.format(subject, sequence)
+  joint_file = 'MSRA/{}/{}/joint.txt'.format(subject, sequence)
   print(joint_file)
   jts = data.load_joints(joint_file)
   
@@ -202,7 +227,7 @@ if __name__ == '__main__':
   ax = fig.add_subplot(111, projection='3d')
   plot_skeleton(jts[0], ax)
 
-  img = PIL.Image.open('MRSA/P4/9/000000_depth.jpg')
+  img = PIL.Image.open('MSRA/P4/9/000000_depth.jpg')
 
   fig = plt.figure()
   ax = fig.add_subplot(111)

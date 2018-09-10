@@ -32,10 +32,10 @@ def all_depth_and_joints(subjects, gestures):
   jts_list = [] 
   for subject in subjects:
     for gesture in gestures:
-      joint_file = os.path.join('MRSA', subject, gesture, 'joint.txt')
+      joint_file = os.path.join('MSRA', subject, gesture, 'joint.txt')
       jts = load_joints(joint_file)
       jts_list += [jts]
-      depth_files += [os.path.join('MRSA', subject, gesture, '{:06d}_depth.bin'.format(i)) for i in range(jts.shape[0])]
+      depth_files += [os.path.join('MSRA', subject, gesture, '{:06d}_depth.bin'.format(i)) for i in range(jts.shape[0])]
   return depth_files, np.concatenate(jts_list, axis=0) 
 
 
@@ -44,7 +44,7 @@ def load_joints(f):
   return np.float32(jts)
 
 
-class MRSADataset(Dataset):
+class MSRADataset(Dataset):
   def __init__(self, subjects=None, gestures=None, image=False, max_buffer=4, size=64):
     subjects = SUBJECTS if subjects is None else subjects
     gestures = GESTURES if gestures is None else gestures
@@ -89,7 +89,7 @@ class MRSADataset(Dataset):
 
 if __name__ == '__main__':
 
-  ds = MRSADataset(image=True) 
+  ds = MSRADataset(image=True) 
 
   dl = DataLoader(
     ds,

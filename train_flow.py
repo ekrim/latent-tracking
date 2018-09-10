@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-from data import MRSADataset
+from data import MSRADataset
 import geometry as geo
 from model import RealNVP
 
@@ -21,7 +21,7 @@ def train(param, dim_in=63):
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   print(device)
 
-  ds = MRSADataset(image=False)
+  ds = MSRADataset(image=False)
   dl = DataLoader(
     ds,
     num_workers=4,

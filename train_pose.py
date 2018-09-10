@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
-from data import MRSADataset
+from data import MSRADataset
 from model import PoseModel
 
 
@@ -21,7 +21,7 @@ def train(param):
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   print(device)
 
-  ds = MRSADataset(image=True)
+  ds = MSRADataset(image=True)
   dl = DataLoader(
     ds,
     num_workers=4,
