@@ -1,5 +1,7 @@
 #### Applications of latent space generative models to hand pose estimation
 
+![Subject P1, sequence 5](plots/P1_5.gif)
+
 #### Instructions
 
 Requires PyTorch

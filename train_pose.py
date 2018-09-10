@@ -51,7 +51,7 @@ def train(param):
         print('it {:d} -- loss {:.03f}'.format(it, loss))
         print_cnt = 0
 
-    torch.save(pose_mod.state_dict(), 'pose_model.pytorch')
+    torch.save(pose_mod.state_dict(), 'models/pose_model.pytorch')
 
 
 if __name__ == '__main__':

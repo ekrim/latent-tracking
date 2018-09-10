@@ -13,16 +13,18 @@ from torch.utils.data import Dataset, DataLoader
 
 import utils
 import geometry as geo
+import kf
 from data import MRSADataset, SUBJECTS, GESTURES
 from model import RealNVP, PoseModel
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument('--flow_model', default='flow_model.pytorch', help='trained RealNVP model')
-  parser.add_argument('--pose_model', default='pose_model.pytorch', help='trained pose model')
+  parser.add_argument('--flow_model', default='models/flow_model.pytorch', help='trained RealNVP model')
+  parser.add_argument('--pose_model', default='models/pose_model.pytorch', help='trained pose model')
   parser.add_argument('--dim_in', default=63, type=int, help='dimensionality of input data')
   parser.add_argument('--display_pose', action='store_true', help='display pose estimates')
+  parser.add_argument('--filter_pose', action='store_true', help='kalman filter pose smoothing')
   parser.add_argument('--display_flow', action='store_true', help='generate synthetic poses and display them')
   parser.add_argument('--interpolate', action='store_true', help='run interpolation experiment')
   parser.add_argument('--rotation', action='store_true', help='run rotation semantiic direction experiment')
@@ -77,22 +79,64 @@ if __name__ == '__main__':
     pred_pose = pose_fnc(batch['img'])
     true_pose = batch['jts'].detach().cpu().numpy()
     img = batch['img'].detach().cpu().numpy()
+    z_pose = enc_fnc(pred_pose)
+    
+    plt_img, plt_true, plt_pred = 131, 132, 133
+    if args.filter_pose:
+      dt = 0.1
+
+      z_param = {
+        'P': 0.5,
+        'Q': 15.0,
+        'R': 10.0,
+        'dt': dt}
+
+      x_param = {
+        'P': 0.5,
+        'Q': 15.0,
+        'R': 10.0,
+        'dt': dt}
+     
+      z_smooth = kf.kalman_filter3d(z_pose, **z_param)
+      latent_smoothed = gen_fnc(z_smooth)
+      input_smoothed = kf.kalman_filter3d(pred_pose, **x_param)
+      plt_img, plt_true, plt_pred, plt_zkf, plt_xkf = 231, 232, 234, 235, 236
+
+    def lim_axes(ax, lim=[-0.8, 0.8]):
+      ax.set_xlim(lim)
+      ax.set_ylim(lim)
 
     for i in range(400):
       fig = plt.figure()
-      ax = fig.add_subplot(131)
+
+      ax = fig.add_subplot(plt_pred)
       ax = geo.plot_skeleton2d(pred_pose[idx+i], ax, autoscale=False)
-      ax.set_xlim([-0.8, 0.8])
-      ax.set_ylim([-0.8, 0.8])
-      ax = fig.add_subplot(132)
+      lim_axes(ax)
+      ax.set_title('Predicted')
+
+      ax = fig.add_subplot(plt_true)
       ax = geo.plot_skeleton2d(true_pose[idx+i], ax, autoscale=False)
-      ax.set_xlim([-0.8, 0.8])
-      ax.set_ylim([-0.8, 0.8])
-      ax = fig.add_subplot(133)
+      lim_axes(ax)
+      ax.set_title('True')
+
+      ax = fig.add_subplot(plt_img)
       ax.imshow(np.clip(img[idx+i,0], 0.9, 1), cmap='Greys_r')
-      #geo.joints_over_depth(true_pose, img, ax)
+      ax.set_title('Depth image')
+      
+      if args.filter_pose:
+        ax = fig.add_subplot(plt_zkf)
+        ax = geo.plot_skeleton2d(latent_smoothed[idx+i], ax, autoscale=False)
+        lim_axes(ax)
+        ax.set_title('Z KF smoothed')
+
+        ax = fig.add_subplot(plt_xkf)
+        ax = geo.plot_skeleton2d(input_smoothed[idx+i], ax, autoscale=False)
+        lim_axes(ax)
+        ax.set_title('KF smoothed')
+
       plt.savefig('pic_{:03d}.png'.format(i))
       plt.close(fig)
+
 
   if args.interpolate:   
     # interpolation in latent space

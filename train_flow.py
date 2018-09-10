@@ -49,7 +49,7 @@ def train(param, dim_in=63):
         print('it {:d} -- loss {:.03f}'.format(it, loss))
         print_cnt = 0
 
-    torch.save(flow.state_dict(), 'flow_model.pytorch')
+    torch.save(flow.state_dict(), 'models/flow_model.pytorch')
 
 
 if __name__ == '__main__':

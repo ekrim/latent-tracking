@@ -1,5 +1,4 @@
 **/*.bin
-**/*.pytorch
 ICVL/
 LM/
 MRSA/
