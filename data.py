@@ -9,6 +9,8 @@ import torch
 import torchvision.transforms.functional as F
 from torch.utils.data import Dataset, DataLoader
 
+import geometry as geo
+
 
 SUBJECTS = ['P{:d}'.format(i) for i in range(9)]
 GESTURES = '1 2 3 4 5 6 7 8 9 I IP L MP RP T TIP Y'.split(' ')
@@ -54,13 +56,14 @@ def get_hand(subject, gesture, idx=0):
 
 
 class MSRADataset(Dataset):
-  def __init__(self, subjects=None, gestures=None, image=False, max_buffer=4, size=64):
+  def __init__(self, subjects=None, gestures=None, image=False, max_buffer=4, size=64, rotate=False):
     subjects = SUBJECTS if subjects is None else subjects
     gestures = GESTURES if gestures is None else gestures
 
     self.image = image
     self.max_buffer = max_buffer
     self.size = size
+    self.rotate = rotate
     self.depth_files, self.joints = all_depth_and_joints(subjects, gestures)
 
   def __len__(self):
@@ -71,6 +74,9 @@ class MSRADataset(Dataset):
     jts = self.joints[idx].reshape((-1,3))
     jts -= np.mean(jts, axis=0)[None,:]
     jts = jts/80
+    
+    if self.rotate: 
+      jts = geo.rotate(jts, -np.pi + 2*np.pi*np.random.rand(), axis='y')
     jts_tens = torch.from_numpy(jts.flatten())
 
     if self.image:

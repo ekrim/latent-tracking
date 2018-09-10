@@ -3,12 +3,27 @@ import torch
 import torch.nn as nn
 
 
+def ind_to_mask(n_dim, lst):
+  if type(lst[0]) is list:
+    mask = np.zeros((len(lst), n_dim))
+    for i, sub_lst in enumerate(lst):
+      idx = (3*np.array(sub_lst)[:,None] + np.arange(3)[None,:]).flatten()
+      mask[i, idx] = 1 
+
+  else:
+    mask = np.zeros(n_dim)
+    idx = (3*np.array(lst)[:,None] + np.arange(3)[None,:]).flatten()
+    mask[idx] = 1
+
+  return mask.astype(np.float32)
+ 
+
 class RealNVP(nn.Module):
-  def __init__(self, dim_in, device):
+  def __init__(self, dim_in, device, grouped_mask=False):
     super(RealNVP, self).__init__()
 
-    n_hid = 128
-    n_mask = 6
+    n_hid = 256
+    n_mask = 10
     
     nets = lambda: nn.Sequential(
       nn.Linear(dim_in, n_hid), 
@@ -29,7 +44,14 @@ class RealNVP(nn.Module):
       nn.BatchNorm1d(n_hid),
       nn.Linear(n_hid, dim_in))
 
-    masks = torch.from_numpy(np.random.randint(0, 2, (n_mask, dim_in)).astype(np.float32))
+    if grouped_mask:
+      mask_list = []
+      for i_mask in range(n_mask):
+        mask_list += [list(np.sort(np.random.choice(dim_in//3, int(np.ceil(dim_in/6)), replace=False)))]
+      masks = torch.from_numpy(ind_to_mask(dim_in, mask_list))
+
+    else:
+      masks = torch.from_numpy(np.random.randint(0, 2, (n_mask, dim_in)).astype(np.float32))
 
     prior = torch.distributions.MultivariateNormal(torch.zeros(dim_in).to(device), torch.eye(dim_in).to(device))
 
@@ -104,7 +126,7 @@ class HierarchicalRealNVP(nn.Module):
     self.mask = nn.Parameter(masks, requires_grad=False)
     self.t = torch.nn.ModuleList([nett() for _ in range(len(masks))])
     self.s = torch.nn.ModuleList([nets() for _ in range(len(masks))])
-    
+
   def g(self, z):
     x = z
     for i in range(len(self.t)):

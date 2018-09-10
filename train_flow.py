@@ -21,14 +21,14 @@ def train(param, dim_in=63):
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   print(device)
 
-  ds = MSRADataset(image=False)
+  ds = MSRADataset(image=False, rotate=param.rotate)
   dl = DataLoader(
     ds,
     num_workers=4,
     batch_size=param.batch_size,
     shuffle=True)
   
-  flow = RealNVP(dim_in, device) 
+  flow = RealNVP(dim_in, device, grouped_mask=param.grouped_mask)
   flow.to(device)
   flow.train()
 
@@ -57,6 +57,8 @@ if __name__ == '__main__':
   parser.add_argument('--batch_size', default=64, type=int, help='batch size')
   parser.add_argument('--total_it', default=10000, type=int, help='number of training samples')
   parser.add_argument('--lr', default=1e-4, type=float, help='learning rate')
+  parser.add_argument('--grouped_mask', action='store_true', help='group masks into chunks of xyz pts')
+  parser.add_argument('--rotate', action='store_true', help='add y-axis rotated data to train set')
 
   args = parser.parse_args(sys.argv[1:])
   train(args)
