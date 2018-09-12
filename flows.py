@@ -6,6 +6,41 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def evan_mask(d_in, d_hid):
+  mask_in = np.ones((d_hid, d_in))
+  degree_cnts = np.diff(np.concatenate([[0], np.sort(np.random.choice(np.arange(d_hid-1)+1, d_in-2, replace=False)), [d_hid]]))
+  cnt = 0
+  for i_col, deg in enumerate(degree_cnts):
+    cnt += deg
+    mask_in[:cnt, i_col+1] = 0
+
+  mask_hid = np.ones((d_hid, d_hid))
+  degree_cnts2 = np.diff(np.concatenate([[0], np.sort(np.random.choice(np.arange(d_hid-1)+1, d_in-2, replace=False)), [d_hid]]))
+
+  cnt1, cnt2 = 0, 0
+  for deg1, deg2 in zip(degree_cnts, degree_cnts2):
+    
+    mask_hid[:cnt2, cnt1:(cnt1+deg1)] = 0.0
+    cnt1 += deg1
+    cnt2 += deg2
+
+  mask_out = np.zeros((d_in, d_hid))
+  cnt = 0
+  for i_row, deg in enumerate(degree_cnts2):
+    cnt += deg
+    mask_out[i_row+1, :cnt] = 1
+
+  prod = np.dot(np.dot(mask_out, mask_hid), mask_in)
+  prod[prod > 1] = 1
+  assert np.all(np.sum(prod, axis=1) == np.arange(d_in)), 'AR property violation'
+  mask_out = np.concatenate([mask_out, mask_out], axis=0)
+
+  to_float = lambda lst: list(map(lambda x: x.astype(np.float32), lst))
+  to_torch = lambda lst: list(map(lambda x: torch.from_numpy(x), lst))
+  return to_torch(to_float([mask_in, mask_hid, mask_out]))
+  
+    
+
 def get_mask(in_features, out_features, in_flow_features, mask_type=None):
     """
     mask_type: input | None | output
@@ -45,7 +80,8 @@ class MADE(nn.Module):
 
     def __init__(self, num_inputs, num_hidden):
         super(MADE, self).__init__()
-
+  
+        #input_mask, hidden_mask, output_mask = evan_mask(num_inputs, num_hidden)
         input_mask = get_mask(
             num_inputs, num_hidden, num_inputs, mask_type='input')
         hidden_mask = get_mask(num_hidden, num_hidden, num_inputs)
@@ -59,17 +95,25 @@ class MADE(nn.Module):
 
     def forward(self, inputs, mode='direct'):
         if mode == 'direct':
-            x = self.main(inputs)
-
-            m, a = x.chunk(2, 1)
+            m_a = self.main(inputs)
+            m, a = m_a.chunk(2, 1)
 
             u = (inputs - m) * torch.exp(a)
             return u, a.sum(-1, keepdim=True)
+
         else:
-            # TODO:
-            # Sampling with MADE is tricky.
-            # We need to perform N forward passes.
-            raise NotImplementedError
+            x = torch.zeros_like(inputs)
+            for i_col in range(inputs.shape[1]):
+                m_a = self.main(x)
+                m, a = m_a.chunk(2, 1)
+                if i_col == 0:
+                  print(m[:,i_col])
+                  print(a[:,i_col])
+                  
+                x[:, i_col] = inputs[:, i_col] * torch.exp(-a[:, i_col]) + m[:, i_col] 
+                
+            return x, a.sum(-1, keepdim=True)
+                
 
 
 class BatchNormFlow(nn.Module):
@@ -179,6 +223,24 @@ class InvertibleMM(nn.Module):
                     inputs.size(0), 1)
 
 
+class HandOrder(nn.Module):
+    """Prepare the data to be in the desired joint order
+    """
+
+    def __init__(self, num_inputs):
+        super(Shuffle, self).__init__()
+        self.perm = np.random.permutation(num_inputs)
+        self.inv_perm = np.argsort(self.perm)
+
+    def forward(self, inputs, mode='direct'):
+        if mode == 'direct':
+            return inputs[:, self.perm], torch.zeros(
+                inputs.size(0), 1, device=inputs.device)
+        else:
+            return inputs[:, self.inv_perm], torch.zeros(
+                inputs.size(0), 1, device=inputs.device)
+
+
 class Shuffle(nn.Module):
     """ An implementation of a shuffling layer from
     Density estimation using Real NVP
@@ -282,3 +344,8 @@ class FlowSequential(nn.Sequential):
                 logdets += logdet
 
         return inputs, logdets
+
+
+if __name__ == '__main__':
+  inn, hid, out = evan_mask(63, 100)
+ 

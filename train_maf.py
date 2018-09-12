@@ -2,7 +2,7 @@ import argparse
 import copy
 import math
 import sys
-
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -21,8 +21,8 @@ if __name__ == '__main__':
   num_hidden = 128
   lr = 0.0001
   log_interval = 1000
-  num_blocks = 5
-  epochs = 1
+  num_blocks = 2
+  epochs = 20
   batch_size = 100
   
   """param.(batch_size, lr, total_it)"""
@@ -76,11 +76,8 @@ if __name__ == '__main__':
       loss = flow_loss(u, log_jacob)
       loss.backward()
       optimizer.step()
-      if batch_idx % log_interval == 0:
-        print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-            epoch, batch_idx * len(data), len(train_loader.dataset),
-            100. * batch_idx / len(train_loader), loss.item()))
-
+ 
+    print('Epoch {:d} of {:d}:\tLoss: {:.6f}'.format(epoch, epochs, loss.item()))
   
     for module in model.modules():
       if isinstance(module, fnn.BatchNormFlow):
@@ -103,9 +100,10 @@ if __name__ == '__main__':
     subject, seq, idx = 'P0', '5', 0
     img, pose = get_hand(subject, seq, idx=idx)
     z = np.random.randn(4, num_inputs).astype(np.float32)
-    synth = model.forward(torch.from_numpy(z).to(device), mode='inverse', logdets=None)[0]
+    z_tens = torch.from_numpy(z).to(device)
+    synth = model.forward(z_tens, mode='inverse', logdets=None)[0].detach().cpu().numpy()
     fig = plt.figure()
     for i in range(4):
-      ax = fig.add_subplot('22{}'.format(i+1))
-      geo.plot_skeleton2d(synth[i], ax, autoscale=False)
+      ax = fig.add_subplot('22{}'.format(i+1), projection='3d')
+      geo.plot_skeleton3d(synth[i], ax, autoscale=False)
     plt.show()
