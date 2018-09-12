@@ -33,7 +33,7 @@ def evan_mask(d_in, d_hid):
   prod = np.dot(np.dot(mask_out, mask_hid), mask_in)
   prod[prod > 1] = 1
   assert np.all(np.sum(prod, axis=1) == np.arange(d_in)), 'AR property violation'
-  mask_out = np.concatenate([mask_out, mask_out], axis=0)
+  #mask_out = np.concatenate([mask_out, mask_out], axis=0)
 
   to_float = lambda lst: list(map(lambda x: x.astype(np.float32), lst))
   to_torch = lambda lst: list(map(lambda x: torch.from_numpy(x), lst))
@@ -81,38 +81,50 @@ class MADE(nn.Module):
     def __init__(self, num_inputs, num_hidden):
         super(MADE, self).__init__()
   
-        #input_mask, hidden_mask, output_mask = evan_mask(num_inputs, num_hidden)
-        input_mask = get_mask(
-            num_inputs, num_hidden, num_inputs, mask_type='input')
-        hidden_mask = get_mask(num_hidden, num_hidden, num_inputs)
-        output_mask = get_mask(
-            num_hidden, num_inputs * 2, num_inputs, mask_type='output')
+        input_mask, hidden_mask, output_mask = evan_mask(num_inputs, num_hidden)
+        #input_mask = get_mask(
+        #    num_inputs, num_hidden, num_inputs, mask_type='input')
+        #hidden_mask = get_mask(num_hidden, num_hidden, num_inputs)
+        #output_mask = get_mask(
+        #    num_hidden, num_inputs * 2, num_inputs, mask_type='output')
 
-        self.main = nn.Sequential(
-            nn.MaskedLinear(num_inputs, num_hidden, input_mask), nn.ReLU(),
-            nn.MaskedLinear(num_hidden, num_hidden, hidden_mask), nn.ReLU(),
-            nn.MaskedLinear(num_hidden, num_inputs * 2, output_mask))
+        self.net_a = nn.Sequential(
+            nn.MaskedLinear(num_inputs, num_hidden, input_mask), nn.LeakyReLU(),
+            nn.BatchNorm1d(num_hidden),
+            nn.MaskedLinear(num_hidden, num_hidden, hidden_mask), nn.LeakyReLU(),
+            nn.BatchNorm1d(num_hidden),
+            nn.MaskedLinear(num_hidden, num_inputs, output_mask), nn.Tanh())
+
+        self.net_m = nn.Sequential(
+            nn.MaskedLinear(num_inputs, num_hidden, input_mask), nn.LeakyReLU(),
+            nn.BatchNorm1d(num_hidden),
+            nn.MaskedLinear(num_hidden, num_hidden, hidden_mask), nn.LeakyReLU(),
+            nn.BatchNorm1d(num_hidden),
+            nn.MaskedLinear(num_hidden, num_inputs, output_mask))
 
     def forward(self, inputs, mode='direct'):
         if mode == 'direct':
-            m_a = self.main(inputs)
-            m, a = m_a.chunk(2, 1)
+            a = self.net_a(inputs)
+            m = self.net_m(inputs)
 
-            u = (inputs - m) * torch.exp(a)
-            return u, a.sum(-1, keepdim=True)
+            u = (inputs - m) * torch.exp(-a)
+            return u, -a.sum(-1, keepdim=True)
 
         else:
+            print('Reversing through MADE')
             x = torch.zeros_like(inputs)
             for i_col in range(inputs.shape[1]):
-                m_a = self.main(x)
-                m, a = m_a.chunk(2, 1)
-                if i_col == 0:
+                a = self.net_a(x)
+                m = self.net_m(x)
+
+                if i_col == 1:
+                  print(inputs[:,i_col])
                   print(m[:,i_col])
                   print(a[:,i_col])
                   
-                x[:, i_col] = inputs[:, i_col] * torch.exp(-a[:, i_col]) + m[:, i_col] 
+                x[:, i_col] = inputs[:, i_col] * torch.exp(a[:, i_col]) + m[:, i_col] 
                 
-            return x, a.sum(-1, keepdim=True)
+            return x, -a.sum(-1, keepdim=True)
                 
 
 
@@ -159,6 +171,8 @@ class BatchNormFlow(nn.Module):
             return y, (self.log_gamma - 0.5 * torch.log(var)).sum(
                 -1, keepdim=True)
         else:
+            print('Reversing through BN')
+            print('training mode: ', self.training)
             if self.training:
                 mean = self.batch_mean
                 var = self.batch_var
@@ -257,6 +271,7 @@ class Shuffle(nn.Module):
             return inputs[:, self.perm], torch.zeros(
                 inputs.size(0), 1, device=inputs.device)
         else:
+            print('Reversing through shuffle')
             return inputs[:, self.inv_perm], torch.zeros(
                 inputs.size(0), 1, device=inputs.device)
 
@@ -277,6 +292,7 @@ class Reverse(nn.Module):
             return inputs[:, self.perm], torch.zeros(
                 inputs.size(0), 1, device=inputs.device)
         else:
+            print('Reversing through reverse')
             return inputs[:, self.inv_perm], torch.zeros(
                 inputs.size(0), 1, device=inputs.device)
 

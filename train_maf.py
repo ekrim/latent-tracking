@@ -10,6 +10,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data
 from torch.utils.data import Dataset, DataLoader
+from sklearn import datasets as ds
 
 import flows as fnn
 from data import MSRADataset, get_hand
@@ -17,32 +18,47 @@ import geometry as geo
 
 
 if __name__ == '__main__':
-  dim_in = num_inputs = 63
-  num_hidden = 128
+  dim_in = num_inputs = 2
+  num_hidden = 64
   lr = 0.0001
   log_interval = 1000
-  num_blocks = 2
-  epochs = 20
+  num_blocks = 5
+  epochs = 5
   batch_size = 100
   
   """param.(batch_size, lr, total_it)"""
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   print(device)
 
-  ds = MSRADataset(image=False, rotate=False)
+  #ds = MSRADataset(image=False, rotate=False)
+  x = ds.make_moons(n_samples=100000, shuffle=True, noise=0.05)[0].astype(np.float32)
+  class Moon(Dataset):
+      def __init__(self, x):
+          self.x = x.astype(np.float32)
+      def __len__(self):
+          return self.x.shape[0]
+      def __getitem__(self, idx):
+          return torch.from_numpy(self.x[idx])
+
   train_loader = DataLoader(
-    ds,
+    Moon(x),
     num_workers=4,
     batch_size=batch_size,
-    shuffle=True)
+    shuffle=True,
+    drop_last=True)
   
   modules = []
   
-  for _ in range(num_blocks):
-    modules += [
-        fnn.MADE(num_inputs, num_hidden),
-        fnn.BatchNormFlow(num_inputs),
-        fnn.Reverse(num_inputs)]
+  for i_block in range(num_blocks):
+    if i_block == num_blocks - 1:
+        modules += [
+            fnn.MADE(num_inputs, num_hidden),
+            fnn.Reverse(num_inputs)]
+    else:
+        modules += [
+            fnn.MADE(num_inputs, num_hidden),
+            #fnn.BatchNormFlow(num_inputs),
+            fnn.Reverse(num_inputs)]
   
   model = fnn.FlowSequential(*modules)
   
@@ -97,13 +113,19 @@ if __name__ == '__main__':
 
   model.eval()
   with torch.no_grad():
-    subject, seq, idx = 'P0', '5', 0
-    img, pose = get_hand(subject, seq, idx=idx)
-    z = np.random.randn(4, num_inputs).astype(np.float32)
+    #subject, seq, idx = 'P0', '5', 0
+    #img, pose = get_hand(subject, seq, idx=idx)
+    z = np.random.randn(200, num_inputs).astype(np.float32)
     z_tens = torch.from_numpy(z).to(device)
     synth = model.forward(z_tens, mode='inverse', logdets=None)[0].detach().cpu().numpy()
     fig = plt.figure()
-    for i in range(4):
-      ax = fig.add_subplot('22{}'.format(i+1), projection='3d')
-      geo.plot_skeleton3d(synth[i], ax, autoscale=False)
+    ax = fig.add_subplot(111)
+    ax.plot(x[:,0], x[:,1], '.')
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(synth[:,0], synth[:,1], '.')
+    # for i in range(4):
+    #   ax = fig.add_subplot('22{}'.format(i+1), projection='3d')
+    #   geo.plot_skeleton3d(synth[i], ax, autoscale=False)
     plt.show()
