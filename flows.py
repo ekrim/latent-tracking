@@ -90,16 +90,16 @@ class MADE(nn.Module):
 
         self.net_a = nn.Sequential(
             nn.MaskedLinear(num_inputs, num_hidden, input_mask), nn.LeakyReLU(),
-            nn.BatchNorm1d(num_hidden),
+            #nn.BatchNorm1d(num_hidden),
             nn.MaskedLinear(num_hidden, num_hidden, hidden_mask), nn.LeakyReLU(),
-            nn.BatchNorm1d(num_hidden),
+            #nn.BatchNorm1d(num_hidden),
             nn.MaskedLinear(num_hidden, num_inputs, output_mask), nn.Tanh())
 
         self.net_m = nn.Sequential(
             nn.MaskedLinear(num_inputs, num_hidden, input_mask), nn.LeakyReLU(),
-            nn.BatchNorm1d(num_hidden),
+            #nn.BatchNorm1d(num_hidden),
             nn.MaskedLinear(num_hidden, num_hidden, hidden_mask), nn.LeakyReLU(),
-            nn.BatchNorm1d(num_hidden),
+            #nn.BatchNorm1d(num_hidden),
             nn.MaskedLinear(num_hidden, num_inputs, output_mask))
 
     def forward(self, inputs, mode='direct'):

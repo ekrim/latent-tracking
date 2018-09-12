@@ -18,19 +18,19 @@ import geometry as geo
 
 
 if __name__ == '__main__':
-  dim_in = num_inputs = 2
-  num_hidden = 64
+  dim_in = num_inputs = 63
+  num_hidden = 128
   lr = 0.0001
   log_interval = 1000
   num_blocks = 5
-  epochs = 5
+  epochs = 9
   batch_size = 100
   
   """param.(batch_size, lr, total_it)"""
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   print(device)
 
-  #ds = MSRADataset(image=False, rotate=False)
+  dataset = MSRADataset(image=False, rotate=False)
   x = ds.make_moons(n_samples=100000, shuffle=True, noise=0.05)[0].astype(np.float32)
   class Moon(Dataset):
       def __init__(self, x):
@@ -41,11 +41,10 @@ if __name__ == '__main__':
           return torch.from_numpy(self.x[idx])
 
   train_loader = DataLoader(
-    Moon(x),
+    dataset,
     num_workers=4,
     batch_size=batch_size,
-    shuffle=True,
-    drop_last=True)
+    shuffle=True)
   
   modules = []
   
@@ -113,19 +112,20 @@ if __name__ == '__main__':
 
   model.eval()
   with torch.no_grad():
-    #subject, seq, idx = 'P0', '5', 0
-    #img, pose = get_hand(subject, seq, idx=idx)
-    z = np.random.randn(200, num_inputs).astype(np.float32)
+    subject, seq, idx = 'P0', '5', 0
+    img, pose = get_hand(subject, seq, idx=idx)
+    z = np.random.randn(4, num_inputs).astype(np.float32)
     z_tens = torch.from_numpy(z).to(device)
     synth = model.forward(z_tens, mode='inverse', logdets=None)[0].detach().cpu().numpy()
     fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(x[:,0], x[:,1], '.')
+    
+    #ax = fig.add_subplot(111)
+    #ax.plot(x[:,0], x[:,1], '.')
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(synth[:,0], synth[:,1], '.')
-    # for i in range(4):
-    #   ax = fig.add_subplot('22{}'.format(i+1), projection='3d')
-    #   geo.plot_skeleton3d(synth[i], ax, autoscale=False)
+    #fig = plt.figure()
+    #ax = fig.add_subplot(111)
+    #ax.plot(synth[:,0], synth[:,1], '.')
+    for i in range(4):
+       ax = fig.add_subplot('22{}'.format(i+1), projection='3d')
+       geo.plot_skeleton3d(synth[i], ax, autoscale=False)
     plt.show()
