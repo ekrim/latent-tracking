@@ -8,6 +8,7 @@ import PIL
 import torch
 import torchvision.transforms.functional as F
 from torch.utils.data import Dataset, DataLoader
+from sklearn import datasets
 
 import geometry as geo
 
@@ -60,6 +61,7 @@ class MSRADataset(Dataset):
     subjects = SUBJECTS if subjects is None else subjects
     gestures = GESTURES if gestures is None else gestures
 
+    self.n_dim = 63
     self.image = image
     self.max_buffer = max_buffer
     self.size = size
@@ -71,7 +73,7 @@ class MSRADataset(Dataset):
     
   def __getitem__(self, idx): 
   
-    jts = self.joints[idx].reshape((-1,3))
+    jts = self.joints[idx].reshape((-1, 3))
     jts -= np.mean(jts, axis=0)[None,:]
     jts = jts/80
     
@@ -88,7 +90,7 @@ class MSRADataset(Dataset):
       delta_width = max_dim - width 
       delta_height = max_dim - height
       
-      left = np.random.randint(0, np.ceil(delta_width+1/2))
+      left = np.random.randint(0, delta_width+1)
       top = np.random.randint(0, delta_height+1)
 
       padded = F.pad(pil_img, (left, top, delta_width-left, delta_height-top))
@@ -100,6 +102,18 @@ class MSRADataset(Dataset):
 
     else:
       return jts_tens
+
+
+class Moon(Dataset):
+  def __init__(self):
+      self.x = datasets.make_moons(n_samples=30000, shuffle=True, noise=0.05)[0].astype(np.float32)
+      self.n_dim = self.x.shape[1]
+
+  def __len__(self):
+      return self.x.shape[0]
+
+  def __getitem__(self, idx):
+      return torch.from_numpy(self.x[idx])
 
 
 if __name__ == '__main__':
@@ -114,6 +128,6 @@ if __name__ == '__main__':
 
   for d in dl:
     jts = d['jts'].detach().cpu().numpy()
-    jt_mat = jts.reshape((-1,3))
+    jt_mat = jts.reshape((-1, 3))
     print(jt_mat.std(axis=0))
     print(jt_mat.mean(axis=0))

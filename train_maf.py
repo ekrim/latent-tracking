@@ -10,15 +10,14 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data
 from torch.utils.data import Dataset, DataLoader
-from sklearn import datasets as ds
 
 import flows as fnn
-from data import MSRADataset, get_hand
+from data import MSRADataset, Moon, get_hand
 import geometry as geo
 
 
 if __name__ == '__main__':
-  dim_in = num_inputs = 63
+  dataset = 'moons'
   num_hidden = 128
   lr = 0.0001
   log_interval = 1000
@@ -30,18 +29,16 @@ if __name__ == '__main__':
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   print(device)
 
-  dataset = MSRADataset(image=False, rotate=False)
-  x = ds.make_moons(n_samples=100000, shuffle=True, noise=0.05)[0].astype(np.float32)
-  class Moon(Dataset):
-      def __init__(self, x):
-          self.x = x.astype(np.float32)
-      def __len__(self):
-          return self.x.shape[0]
-      def __getitem__(self, idx):
-          return torch.from_numpy(self.x[idx])
+  if dataset == 'hands':
+    ds = MSRADataset(image=False, rotate=False)
+  elif dataset == 'moons':
+    ds = Moon()
+  else:
+    raise ValueError('no such dataset')
 
+  dim_in = num_inputs = ds.n_dim
   train_loader = DataLoader(
-    dataset,
+    ds,
     num_workers=4,
     batch_size=batch_size,
     shuffle=True)
@@ -50,14 +47,14 @@ if __name__ == '__main__':
   
   for i_block in range(num_blocks):
     if i_block == num_blocks - 1:
-        modules += [
-            fnn.MADE(num_inputs, num_hidden),
-            fnn.Reverse(num_inputs)]
+      modules += [
+        fnn.MADE(num_inputs, num_hidden),
+        fnn.Reverse(num_inputs)]
     else:
-        modules += [
-            fnn.MADE(num_inputs, num_hidden),
-            #fnn.BatchNormFlow(num_inputs),
-            fnn.Reverse(num_inputs)]
+      modules += [
+        fnn.MADE(num_inputs, num_hidden),
+        #fnn.BatchNormFlow(num_inputs),
+        fnn.Reverse(num_inputs)]
   
   model = fnn.FlowSequential(*modules)
   
@@ -67,9 +64,7 @@ if __name__ == '__main__':
       module.bias.data.fill_(0)
   
   model.to(device)
-  
   optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-6)
-  
   
   def flow_loss(u, log_jacob, size_average=True):
     log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi)).sum(
@@ -78,7 +73,6 @@ if __name__ == '__main__':
     if size_average:
       loss /= u.size(0)
     return loss
-  
   
   def train(epoch):
     model.train()
@@ -112,20 +106,26 @@ if __name__ == '__main__':
 
   model.eval()
   with torch.no_grad():
-    subject, seq, idx = 'P0', '5', 0
-    img, pose = get_hand(subject, seq, idx=idx)
-    z = np.random.randn(4, num_inputs).astype(np.float32)
+    n_gen = 4 if dataset == 'hands' else 500
+    z = np.random.randn(n_gen, num_inputs).astype(np.float32)
     z_tens = torch.from_numpy(z).to(device)
     synth = model.forward(z_tens, mode='inverse', logdets=None)[0].detach().cpu().numpy()
-    fig = plt.figure()
-    
-    #ax = fig.add_subplot(111)
-    #ax.plot(x[:,0], x[:,1], '.')
 
-    #fig = plt.figure()
-    #ax = fig.add_subplot(111)
-    #ax.plot(synth[:,0], synth[:,1], '.')
-    for i in range(4):
-       ax = fig.add_subplot('22{}'.format(i+1), projection='3d')
-       geo.plot_skeleton3d(synth[i], ax, autoscale=False)
+    fig = plt.figure()
+
+    if dataset == 'hands':
+      subject, seq, idx = 'P0', '5', 0
+      img, pose = get_hand(subject, seq, idx=idx)
+      for i in range(n_gen):
+         ax = fig.add_subplot('22{}'.format(i+1), projection='3d')
+         geo.plot_skeleton3d(synth[i], ax, autoscale=False)
+    
+    elif dataset == 'moons':
+      ax = fig.add_subplot(111)
+      ax.plot(x[:,0], x[:,1], '.')
+
+      fig = plt.figure()
+      ax = fig.add_subplot(111)
+      ax.plot(synth[:,0], synth[:,1], '.')
+
     plt.show()
