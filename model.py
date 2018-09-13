@@ -19,12 +19,9 @@ def ind_to_mask(n_dim, lst):
  
 
 class RealNVP(nn.Module):
-  def __init__(self, dim_in, device, grouped_mask=False):
+  def __init__(self, dim_in, device, n_hid=256, n_mask=10, grouped_mask=False):
     super(RealNVP, self).__init__()
 
-    n_hid = 256
-    n_mask = 10
-    
     nets = lambda: nn.Sequential(
       nn.Linear(dim_in, n_hid), 
       nn.LeakyReLU(), 

@@ -329,7 +329,7 @@ class FlowSequential(nn.Sequential):
     In addition to a forward pass it implements a backward pass and
     computes log jacobians.
     """
-    def __init__(self, num_blocks, num_inputs, num_hidden):
+    def __init__(self, num_blocks, num_inputs, num_hidden, device):
     
         modules = []
         for i_block in range(num_blocks):
@@ -345,17 +345,19 @@ class FlowSequential(nn.Sequential):
 
         super(FlowSequential, self).__init__(*modules)
 
+        self.prior = torch.distributions.MultivariateNormal(torch.zeros(num_inputs).to(device), torch.eye(num_inputs).to(device))
+
     def f(self, x):
         z, log_det = self.forward(x, mode='direct')
-        return z, log_det
+        return z, self.prior.log_prob(z) + log_det
     
     def g(self, z):
         x, _ = self.forward(z, mode='inverse')
         return x
  
     def log_prob(self, x):
-        _, log_det = self.forward(x, mode='direct')
-        return log_det 
+        _, log_prob = self.forward(x, mode='direct')
+        return log_prob 
 
     def forward(self, inputs, mode='direct', logdets=None):
         """ Performs a forward or backward pass for flow modules.

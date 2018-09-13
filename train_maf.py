@@ -45,8 +45,7 @@ if __name__ == '__main__':
     batch_size=batch_size,
     shuffle=True)
   
-  
-  model = fnn.FlowSequential(num_blocks, num_inputs, num_hidden)
+  model = fnn.FlowSequential(num_blocks, num_inputs, num_hidden, device)
   
   for module in model.modules():
     if isinstance(module, nn.Linear):
@@ -67,13 +66,10 @@ if __name__ == '__main__':
   def train(epoch):
     model.train()
     for batch_idx, data in enumerate(train_loader):
-      if isinstance(data, list):
-        data = data[0]
-      data = data.to(device)
       optimizer.zero_grad()
-      u, log_jacob = model(data)
-      loss = flow_loss(u, log_jacob)
-      loss.backward()
+
+      loss = -model.log_prob(data.to(device)).mean()
+      loss.backward(retain_graph=True)
       optimizer.step()
  
     print('Epoch {:d} of {:d}:\tLoss: {:.6f}'.format(epoch, epochs, loss.item()))

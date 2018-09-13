@@ -11,8 +11,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
-import geometry as geo
 import kf
+import flows
+import geometry as geo
 from data import MSRADataset, SUBJECTS, GESTURES, get_hand
 from model import RealNVP, PoseModel
 
@@ -33,7 +34,15 @@ if __name__ == '__main__':
   dim_in = args.dim_in
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-  flow_mod = RealNVP(args.dim_in, device)
+  if model_type == 'realnvp':
+    flow_mod = RealNVP(args.dim_in, device, n_hid=256, n_mask=10)
+
+  elif model_type == 'maf':
+    flow_mod = flows.FlowSequential(num_blocks, args.dim_in, n_hid, device)
+
+  else:
+    raise ValueError('no such flow')
+
   flow_mod = geo.load_model(flow_mod, args.flow_model, device)
 
   pose_mod = PoseModel()
