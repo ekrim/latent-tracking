@@ -17,12 +17,12 @@ import geometry as geo
 
 
 if __name__ == '__main__':
-  dataset = 'moons'
-  num_hidden = 128
+  dataset = 'hands'
+  num_hidden = 200
   lr = 0.0001
   log_interval = 1000
-  num_blocks = 5
-  epochs = 9
+  num_blocks = 7
+  epochs = 15
   batch_size = 100
   
   """param.(batch_size, lr, total_it)"""
@@ -30,9 +30,11 @@ if __name__ == '__main__':
   print(device)
 
   if dataset == 'hands':
-    ds = MSRADataset(image=False, rotate=False)
+    ds = MSRADataset(image=False, rotate=True)
+
   elif dataset == 'moons':
     ds = Moon()
+
   else:
     raise ValueError('no such dataset')
 
@@ -43,20 +45,8 @@ if __name__ == '__main__':
     batch_size=batch_size,
     shuffle=True)
   
-  modules = []
   
-  for i_block in range(num_blocks):
-    if i_block == num_blocks - 1:
-      modules += [
-        fnn.MADE(num_inputs, num_hidden),
-        fnn.Reverse(num_inputs)]
-    else:
-      modules += [
-        fnn.MADE(num_inputs, num_hidden),
-        #fnn.BatchNormFlow(num_inputs),
-        fnn.Reverse(num_inputs)]
-  
-  model = fnn.FlowSequential(*modules)
+  model = fnn.FlowSequential(num_blocks, num_inputs, num_hidden)
   
   for module in model.modules():
     if isinstance(module, nn.Linear):
@@ -92,8 +82,8 @@ if __name__ == '__main__':
       if isinstance(module, fnn.BatchNormFlow):
         module.momentum = 0
   
-    with torch.no_grad():
-      model(train_loader.dataset[0].view(1,-1).to(data.device))
+    #with torch.no_grad():
+    #  model(train_loader.dataset[0].view(1,-1).to(data.device))
   
     for module in model.modules():
       if isinstance(module, fnn.BatchNormFlow):
@@ -106,7 +96,7 @@ if __name__ == '__main__':
 
   model.eval()
   with torch.no_grad():
-    n_gen = 4 if dataset == 'hands' else 500
+    n_gen = 9 if dataset == 'hands' else 500
     z = np.random.randn(n_gen, num_inputs).astype(np.float32)
     z_tens = torch.from_numpy(z).to(device)
     synth = model.forward(z_tens, mode='inverse', logdets=None)[0].detach().cpu().numpy()
@@ -117,12 +107,12 @@ if __name__ == '__main__':
       subject, seq, idx = 'P0', '5', 0
       img, pose = get_hand(subject, seq, idx=idx)
       for i in range(n_gen):
-         ax = fig.add_subplot('22{}'.format(i+1), projection='3d')
+         ax = fig.add_subplot('33{}'.format(i+1), projection='3d')
          geo.plot_skeleton3d(synth[i], ax, autoscale=False)
     
     elif dataset == 'moons':
       ax = fig.add_subplot(111)
-      ax.plot(x[:,0], x[:,1], '.')
+      ax.plot(ds.x[:,0], ds.x[:,1], '.')
 
       fig = plt.figure()
       ax = fig.add_subplot(111)

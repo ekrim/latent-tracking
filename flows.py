@@ -33,7 +33,7 @@ def evan_mask(d_in, d_hid):
   prod = np.dot(np.dot(mask_out, mask_hid), mask_in)
   prod[prod > 1] = 1
   assert np.all(np.sum(prod, axis=1) == np.arange(d_in)), 'AR property violation'
-  #mask_out = np.concatenate([mask_out, mask_out], axis=0)
+  mask_out = np.concatenate([mask_out, mask_out], axis=0)
 
   to_float = lambda lst: list(map(lambda x: x.astype(np.float32), lst))
   to_torch = lambda lst: list(map(lambda x: torch.from_numpy(x), lst))
@@ -88,25 +88,18 @@ class MADE(nn.Module):
         #output_mask = get_mask(
         #    num_hidden, num_inputs * 2, num_inputs, mask_type='output')
 
-        self.net_a = nn.Sequential(
+        self.main = nn.Sequential(
             nn.MaskedLinear(num_inputs, num_hidden, input_mask), nn.LeakyReLU(),
-            #nn.BatchNorm1d(num_hidden),
+            nn.BatchNorm1d(num_hidden),
             nn.MaskedLinear(num_hidden, num_hidden, hidden_mask), nn.LeakyReLU(),
-            #nn.BatchNorm1d(num_hidden),
-            nn.MaskedLinear(num_hidden, num_inputs, output_mask), nn.Tanh())
-
-        self.net_m = nn.Sequential(
-            nn.MaskedLinear(num_inputs, num_hidden, input_mask), nn.LeakyReLU(),
-            #nn.BatchNorm1d(num_hidden),
-            nn.MaskedLinear(num_hidden, num_hidden, hidden_mask), nn.LeakyReLU(),
-            #nn.BatchNorm1d(num_hidden),
-            nn.MaskedLinear(num_hidden, num_inputs, output_mask))
+            nn.BatchNorm1d(num_hidden),
+            nn.MaskedLinear(num_hidden, 2*num_inputs, output_mask))
 
     def forward(self, inputs, mode='direct'):
         if mode == 'direct':
-            a = self.net_a(inputs)
-            m = self.net_m(inputs)
-
+            m, a = self.main(inputs).chunk(2, 1)
+            a = torch.tanh(a)
+                    
             u = (inputs - m) * torch.exp(-a)
             return u, -a.sum(-1, keepdim=True)
 
@@ -114,14 +107,8 @@ class MADE(nn.Module):
             print('Reversing through MADE')
             x = torch.zeros_like(inputs)
             for i_col in range(inputs.shape[1]):
-                a = self.net_a(x)
-                m = self.net_m(x)
-
-                if i_col == 1:
-                  print(inputs[:,i_col])
-                  print(m[:,i_col])
-                  print(a[:,i_col])
-                  
+                m, a = self.main(x).chunk(2, 1)
+                a = torch.tanh(a)
                 x[:, i_col] = inputs[:, i_col] * torch.exp(a[:, i_col]) + m[:, i_col] 
                 
             return x, -a.sum(-1, keepdim=True)
@@ -241,9 +228,11 @@ class HandOrder(nn.Module):
     """Prepare the data to be in the desired joint order
     """
 
-    def __init__(self, num_inputs):
-        super(Shuffle, self).__init__()
-        self.perm = np.random.permutation(num_inputs)
+    def __init__(self):
+        super(HandOrder, self).__init__()
+        
+        self.perm = (np.array(
+          [0, 5, 1, 9, 13, 17, 6, 2, 10, 14, 18, 7, 3, 11, 15, 19, 8, 4, 12, 16, 20])[:,None] + np.arange(3)[None,:]).flatten()
         self.inv_perm = np.argsort(self.perm)
 
     def forward(self, inputs, mode='direct'):
@@ -340,6 +329,33 @@ class FlowSequential(nn.Sequential):
     In addition to a forward pass it implements a backward pass and
     computes log jacobians.
     """
+    def __init__(self, num_blocks, num_inputs, num_hidden):
+    
+        modules = []
+        for i_block in range(num_blocks):
+          if i_block == num_blocks - 1:
+            modules += [
+              MADE(num_inputs, num_hidden),
+              Shuffle(num_inputs)]
+          else:
+            modules += [
+              MADE(num_inputs, num_hidden),
+              #BatchNormFlow(num_inputs),
+              Shuffle(num_inputs)]
+
+        super(FlowSequential, self).__init__(*modules)
+
+    def f(self, x):
+        z, log_det = self.forward(x, mode='direct')
+        return z, log_det
+    
+    def g(self, z):
+        x, _ = self.forward(z, mode='inverse')
+        return x
+ 
+    def log_prob(self, x):
+        _, log_det = self.forward(x, mode='direct')
+        return log_det 
 
     def forward(self, inputs, mode='direct', logdets=None):
         """ Performs a forward or backward pass for flow modules.
@@ -349,7 +365,9 @@ class FlowSequential(nn.Sequential):
         """
         if logdets is None:
             logdets = torch.zeros(inputs.size(0), 1, device=inputs.device)
+
         assert mode in ['direct', 'inverse']
+
         if mode == 'direct':
             for module in self._modules.values():
                 inputs, logdet = module(inputs, mode)
