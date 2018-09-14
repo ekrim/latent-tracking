@@ -23,6 +23,7 @@ if __name__ == '__main__':
   parser.add_argument('--flow_model', default='models/flow_model.pytorch', help='trained RealNVP model')
   parser.add_argument('--pose_model', default='models/pose_model.pytorch', help='trained pose model')
   parser.add_argument('--dim_in', default=63, type=int, help='dimensionality of input data')
+  parser.add_argument('--model_type', default='maf', help='maf or realnvp')
   parser.add_argument('--display_pose', action='store_true', help='display pose estimates')
   parser.add_argument('--filter_pose', action='store_true', help='kalman filter pose smoothing')
   parser.add_argument('--display_flow', action='store_true', help='generate synthetic poses and display them')
@@ -34,11 +35,11 @@ if __name__ == '__main__':
   dim_in = args.dim_in
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-  if model_type == 'realnvp':
+  if args.model_type == 'realnvp':
     flow_mod = RealNVP(args.dim_in, device, n_hid=256, n_mask=10)
 
-  elif model_type == 'maf':
-    flow_mod = flows.FlowSequential(num_blocks, args.dim_in, n_hid, device)
+  elif args.model_type == 'maf':
+    flow_mod = flows.FlowSequential(7, args.dim_in, 256, device)
 
   else:
     raise ValueError('no such flow')

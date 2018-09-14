@@ -82,6 +82,10 @@ class MADE(nn.Module):
         super(MADE, self).__init__()
   
         input_mask, hidden_mask, output_mask = evan_mask(num_inputs, num_hidden)
+        self.register_buffer('input_mask', input_mask)
+        self.register_buffer('hidden_mask', hidden_mask)
+        self.register_buffer('output_mask', output_mask)
+
         #input_mask = get_mask(
         #    num_inputs, num_hidden, num_inputs, mask_type='input')
         #hidden_mask = get_mask(num_hidden, num_hidden, num_inputs)
@@ -228,7 +232,7 @@ class HandOrder(nn.Module):
     """Prepare the data to be in the desired joint order
     """
 
-    def __init__(self):
+    def __init__(self, num_inputs):
         super(HandOrder, self).__init__()
         
         self.perm = (np.array(
@@ -252,15 +256,19 @@ class Shuffle(nn.Module):
 
     def __init__(self, num_inputs):
         super(Shuffle, self).__init__()
-        self.perm = np.random.permutation(num_inputs)
-        self.inv_perm = np.argsort(self.perm)
+        perm = np.random.permutation(num_inputs)
+        inv_perm = np.argsort(perm)
+
+        self.perm = torch.from_numpy(perm)
+        self.inv_perm = torch.from_numpy(inv_perm)
+        self.register_buffer('perm_vec', self.perm)
+        self.register_buffer('inv_perm_vec', self.inv_perm)
 
     def forward(self, inputs, mode='direct'):
         if mode == 'direct':
             return inputs[:, self.perm], torch.zeros(
                 inputs.size(0), 1, device=inputs.device)
         else:
-            print('Reversing through shuffle')
             return inputs[:, self.inv_perm], torch.zeros(
                 inputs.size(0), 1, device=inputs.device)
 
@@ -356,7 +364,7 @@ class FlowSequential(nn.Sequential):
         return x
  
     def log_prob(self, x):
-        _, log_prob = self.forward(x, mode='direct')
+        _, log_prob = self.f(x)
         return log_prob 
 
     def forward(self, inputs, mode='direct', logdets=None):

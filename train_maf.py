@@ -18,11 +18,11 @@ import geometry as geo
 
 if __name__ == '__main__':
   dataset = 'hands'
-  num_hidden = 200
+  num_hidden = 256
   lr = 0.0001
   log_interval = 1000
   num_blocks = 7
-  epochs = 15
+  epochs = 20
   batch_size = 100
   
   """param.(batch_size, lr, total_it)"""
