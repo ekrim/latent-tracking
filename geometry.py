@@ -172,6 +172,32 @@ def normalize_dim(x, goal_min, goal_max, dim):
   return x
   
  
+def get_angles(jts):
+  v1 = jts[1] - jts[0]
+  v2 = jts[13] - jts[0]
+  
+  out = np.float32([
+    v1[1]*v2[2]-v2[1]*v1[2], 
+    v1[0]*v2[2]-v2[0]*v1[2], 
+    v1[0]*v2[1]-v2[0]*v1[1]])
+
+  azim = np.arctan2(out[[1]], out[[0]])
+  elev = np.arctan2(out[[2]], out[[0]])
+  return azim, elev  
+
+
+def fix_2pi(z):
+  new_z = z.copy()
+  new_z[1,0] = closer_angle(z[0,0], z[1,0])
+  new_z[1,1] = closer_angle(z[0,1], z[1,1])
+  return new_z
+
+
+def closer_angle(ang1, ang2, k_max=30):
+  ang_candidates = 2*np.pi*np.arange(-k_max, k_max+1) + ang2
+  return ang_candidates[np.argmin(np.abs(ang1 - ang_candidates))]
+
+
 def rotate(x, theta, axis='x'):
   if axis == 'x':
     R = np.float32(

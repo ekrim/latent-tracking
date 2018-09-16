@@ -50,7 +50,7 @@ if __name__ == '__main__':
   pose_mod = geo.load_model(pose_mod, args.pose_model, device)
 
   gen_fnc = lambda z: flow_mod.g(torch.from_numpy(z.astype(np.float32)).to(device)).detach().cpu().numpy()
-  enc_fnc = lambda x: flow_mod.f(torch.from_numpy(x.astype(np.float32)).to(device))[0].detach().cpu().numpy()
+  enc_fnc = lambda x: flow_mod.forward(torch.from_numpy(x.astype(np.float32)).to(device))[0].detach().cpu().numpy()
   logp_fnc = lambda x: flow_mod.log_prob(torch.from_numpy(x.astype(np.float32)).to(device)).detach().cpu().numpy()
  
   pose_fnc = lambda x: pose_mod(x.to(device)).detach().cpu().numpy() 
@@ -172,18 +172,23 @@ if __name__ == '__main__':
 
     # interp in latent space
     z = enc_fnc(geo.stack([pose1, pose2]))
+   
+    print(z[:,:2])
+    #z = geo.fix_2pi(z)
+    print(z[:,:2])
+   
     z_interp = geo.interpolate(z, n_interp) 
     latent_interp = gen_fnc(z_interp)
 
     # plot prob trajectory
-    probs = logp_fnc(latent_interp).flatten()
+    #probs = logp_fnc(latent_interp).flatten()
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(probs)
-    ax.set_xlabel('Interp step')
-    ax.set_ylabel('log p(x)')
-    ax.set_title('Sample likelihood over interpolation')
+    #fig = plt.figure()
+    #ax = fig.add_subplot(111)
+    #ax.plot(probs)
+    #ax.set_xlabel('Interp step')
+    #ax.set_ylabel('log p(x)')
+    #ax.set_title('Sample likelihood over interpolation')
 
     zeros_hand = gen_fnc(np.zeros((1,63)))
     fig = plt.figure()

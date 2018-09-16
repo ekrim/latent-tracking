@@ -30,7 +30,7 @@ if __name__ == '__main__':
   print(device)
 
   if dataset == 'hands':
-    ds = MSRADataset(image=False, gestures=['5'], rotate=True)
+    ds = MSRADataset(image=False, angles=True, gestures=['5'], rotate=True)
 
   elif dataset == 'moons':
     ds = Moon()
@@ -67,8 +67,9 @@ if __name__ == '__main__':
     model.train()
     for batch_idx, data in enumerate(train_loader):
       optimizer.zero_grad()
+      jts, azim, elev = data['jts'].to(device), data['azim'].to(device), data['elev'].to(device)
 
-      loss = -model.log_prob(data.to(device)).mean()
+      loss = -model.log_prob(jts, azim, elev).mean()
       loss.backward(retain_graph=True)
       optimizer.step()
  

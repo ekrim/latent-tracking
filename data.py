@@ -57,12 +57,13 @@ def get_hand(subject, gesture, idx=0):
 
 
 class MSRADataset(Dataset):
-  def __init__(self, subjects=None, gestures=None, image=False, max_buffer=4, size=64, rotate=False):
+  def __init__(self, subjects=None, gestures=None, image=False, angles=False, max_buffer=4, size=64, rotate=False):
     subjects = SUBJECTS if subjects is None else subjects
     gestures = GESTURES if gestures is None else gestures
 
     self.n_dim = 63
     self.image = image
+    self.angles = angles
     self.max_buffer = max_buffer
     self.size = size
     self.rotate = rotate
@@ -79,6 +80,12 @@ class MSRADataset(Dataset):
     
     if self.rotate: 
       jts = geo.rotate(jts, -np.pi + 2*np.pi*np.random.rand(), axis='y')
+
+    if self.angles:
+      azim, elev = geo.get_angles(jts)
+      azim = torch.from_numpy(azim.astype(np.float32)) 
+      elev = torch.from_numpy(elev.astype(np.float32))
+   
     jts_tens = torch.from_numpy(jts.flatten())
 
     if self.image:
@@ -101,7 +108,11 @@ class MSRADataset(Dataset):
       return {'img': img_tens, 'jts': jts_tens}
 
     else:
-      return jts_tens
+      if self.angles:
+        return {'jts': jts_tens, 'azim': azim, 'elev': elev}
+
+      else:
+        return jts_tens
 
 
 class Moon(Dataset):

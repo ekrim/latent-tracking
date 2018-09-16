@@ -328,6 +328,14 @@ class CouplingLayer(nn.Module):
             return torch.cat([x_a, x_b], dim=-1), -log_s.sum(-1, keepdim=True)
 
 
+def log_wrapped_normal_pdf(angle, mean, std, k_max=50):
+    pdf = torch.zeros_like(angle).to(angle.device)
+    for k in range(-k_max, k_max+1):
+        pdf += torch.exp(-(angle - mean + 2*np.pi*k)**2 / (2*std)**2)
+
+    return torch.log(pdf/(std*np.sqrt(2*np.pi)))
+
+
 class FlowSequential(nn.Sequential):
     """ A sequential container for flows.
     In addition to a forward pass it implements a backward pass and
@@ -349,18 +357,24 @@ class FlowSequential(nn.Sequential):
 
         super(FlowSequential, self).__init__(*modules)
 
-        self.prior = torch.distributions.MultivariateNormal(torch.zeros(num_inputs).to(device), torch.eye(num_inputs).to(device))
+        self.prior = torch.distributions.MultivariateNormal(torch.zeros(num_inputs-2).to(device), torch.eye(num_inputs-2).to(device))
 
-    def f(self, x):
+    def f(self, x, azim, elev):
         z, log_det = self.forward(x, mode='direct')
-        return z, self.prior.log_prob(z) + log_det.view(-1)
+        log1 = log_wrapped_normal_pdf(z[:,0], azim.view(-1), 0.5) 
+
+        log_prob = log1 + \
+                   log_wrapped_normal_pdf(z[:,1], elev.view(-1), 0.5) + \
+                   self.prior.log_prob(z[:,2:]) + \
+                   log_det.view(-1)
+        return z, log_prob
     
     def g(self, z):
         x, _ = self.forward(z, mode='inverse')
         return x
  
-    def log_prob(self, x):
-        _, log_prob = self.f(x)
+    def log_prob(self, x, azim, elev):
+        _, log_prob = self.f(x, azim, elev)
         return log_prob 
 
     def forward(self, inputs, mode='direct', logdets=None):
