@@ -22,15 +22,17 @@ if __name__ == '__main__':
   lr = 0.0001
   log_interval = 1000
   num_blocks = 7
-  epochs = 100
+  epochs = 30
   batch_size = 100
+  gestures = None
+  
   
   """param.(batch_size, lr, total_it)"""
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   print(device)
 
   if dataset == 'hands':
-    ds = MSRADataset(image=False, angles=True, gestures=['5'], rotate=True)
+    ds = MSRADataset(image=False, angles=True, gestures=gestures, rotate=True)
 
   elif dataset == 'moons':
     ds = Moon()

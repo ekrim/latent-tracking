@@ -1,4 +1,4 @@
-models/maf_model.pytorch
+models/*.pytorch
 **/*.bin
 ICVL/
 LM/

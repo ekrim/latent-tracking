@@ -359,12 +359,15 @@ class FlowSequential(nn.Sequential):
 
         self.prior = torch.distributions.MultivariateNormal(torch.zeros(num_inputs-2).to(device), torch.eye(num_inputs-2).to(device))
 
-    def f(self, x, azim, elev):
+    def f(self, x, azim, elev, wn_std=0.5):
+        """wn_std: was 0.5"""
         z, log_det = self.forward(x, mode='direct')
-        log1 = log_wrapped_normal_pdf(z[:,0], azim.view(-1), 0.5) 
 
+        log1 = log_wrapped_normal_pdf(z[:,0], azim.view(-1), wn_std) 
+        log2 = log_wrapped_normal_pdf(z[:,1], elev.view(-1), wn_std)
+        
         log_prob = log1 + \
-                   log_wrapped_normal_pdf(z[:,1], elev.view(-1), 0.5) + \
+                   log2 + \
                    self.prior.log_prob(z[:,2:]) + \
                    log_det.view(-1)
         return z, log_prob
