@@ -177,6 +177,7 @@ if __name__ == '__main__':
 
     # plot prob trajectory
     probs = logp_fnc(latent_interp).flatten()
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.plot(probs)
@@ -197,13 +198,9 @@ if __name__ == '__main__':
 
     fig = plt.figure()
 
-    ax = fig.add_subplot(121)
+    ax = fig.add_subplot(111)
     ax.imshow(np.clip(img1, 0.9, 1), cmap='Greys_r')
-    ax.set_title('Starting pose')
-
-    ax = fig.add_subplot(122)
-    ax.imshow(np.clip(img2, 0.9, 1), cmap='Greys_r')
-    ax.set_title('Final pose')
+    ax.set_title('Hand to interpolate')
 
     for i in range(n_interp):
       fig = plt.figure()

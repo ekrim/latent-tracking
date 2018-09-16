@@ -22,7 +22,7 @@ if __name__ == '__main__':
   lr = 0.0001
   log_interval = 1000
   num_blocks = 7
-  epochs = 20
+  epochs = 100
   batch_size = 100
   
   """param.(batch_size, lr, total_it)"""
@@ -30,7 +30,7 @@ if __name__ == '__main__':
   print(device)
 
   if dataset == 'hands':
-    ds = MSRADataset(image=False, rotate=True)
+    ds = MSRADataset(image=False, gestures=['5'], rotate=True)
 
   elif dataset == 'moons':
     ds = Moon()

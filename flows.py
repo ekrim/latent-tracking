@@ -108,7 +108,6 @@ class MADE(nn.Module):
             return u, -a.sum(-1, keepdim=True)
 
         else:
-            print('Reversing through MADE')
             x = torch.zeros_like(inputs)
             for i_col in range(inputs.shape[1]):
                 m, a = self.main(x).chunk(2, 1)
@@ -162,8 +161,6 @@ class BatchNormFlow(nn.Module):
             return y, (self.log_gamma - 0.5 * torch.log(var)).sum(
                 -1, keepdim=True)
         else:
-            print('Reversing through BN')
-            print('training mode: ', self.training)
             if self.training:
                 mean = self.batch_mean
                 var = self.batch_var
@@ -289,7 +286,6 @@ class Reverse(nn.Module):
             return inputs[:, self.perm], torch.zeros(
                 inputs.size(0), 1, device=inputs.device)
         else:
-            print('Reversing through reverse')
             return inputs[:, self.inv_perm], torch.zeros(
                 inputs.size(0), 1, device=inputs.device)
 
@@ -357,7 +353,7 @@ class FlowSequential(nn.Sequential):
 
     def f(self, x):
         z, log_det = self.forward(x, mode='direct')
-        return z, self.prior.log_prob(z) + log_det
+        return z, self.prior.log_prob(z) + log_det.view(-1)
     
     def g(self, z):
         x, _ = self.forward(z, mode='inverse')
