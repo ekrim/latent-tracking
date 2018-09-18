@@ -341,7 +341,7 @@ class FlowSequential(nn.Sequential):
     In addition to a forward pass it implements a backward pass and
     computes log jacobians.
     """
-    def __init__(self, num_blocks, num_inputs, num_hidden, device):
+    def __init__(self, num_blocks, num_inputs, num_hidden, device, n_latent=0):
     
         modules = []
         for i_block in range(num_blocks):
@@ -357,26 +357,28 @@ class FlowSequential(nn.Sequential):
 
         super(FlowSequential, self).__init__(*modules)
 
-        self.prior = torch.distributions.MultivariateNormal(torch.zeros(num_inputs-2).to(device), torch.eye(num_inputs-2).to(device))
+        self.prior = torch.distributions.MultivariateNormal(torch.zeros(num_inputs-n_latent).to(device), torch.eye(num_inputs-n_latent).to(device))
 
-    def f(self, x, azim, elev, wn_std=0.5):
+    def f(self, x, azim=None, elev=None, wn_std=0.5):
         """wn_std: was 0.5"""
         z, log_det = self.forward(x, mode='direct')
 
-        log1 = log_wrapped_normal_pdf(z[:,0], azim.view(-1), wn_std) 
-        log2 = log_wrapped_normal_pdf(z[:,1], elev.view(-1), wn_std)
-        
-        log_prob = log1 + \
-                   log2 + \
-                   self.prior.log_prob(z[:,2:]) + \
+        idx = 0 if azim is None else 2
+        log_prob = self.prior.log_prob(z[:,idx:]) + \
                    log_det.view(-1)
+
+        if azim is not None:
+            log1 = log_wrapped_normal_pdf(z[:,0], azim.view(-1), wn_std) 
+            log2 = log_wrapped_normal_pdf(z[:,1], elev.view(-1), wn_std)
+            log_prob += log1 + log2
+        
         return z, log_prob
     
     def g(self, z):
         x, _ = self.forward(z, mode='inverse')
         return x
  
-    def log_prob(self, x, azim, elev):
+    def log_prob(self, x, azim=None, elev=None):
         _, log_prob = self.f(x, azim, elev)
         return log_prob 
 

@@ -102,7 +102,7 @@ def plot_skeleton3d(x, ax, autoscale=True):
   return ax
 
 
-def plot_skeleton2d(x, ax, autoscale=True):
+def plot_skeleton2d(x, ax, autoscale=True, axes=False):
   if x.shape[-1] != 3:
     x = x.reshape((-1, 3))
 
@@ -130,6 +130,8 @@ def plot_skeleton2d(x, ax, autoscale=True):
     
     ax.set_xlim(new_range[:,0])  
     ax.set_ylim(new_range[:,1])  
+  ax.get_xaxis().set_visible(axes)
+  ax.get_yaxis().set_visible(axes)
   return ax
 
 

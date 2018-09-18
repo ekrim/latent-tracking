@@ -21,10 +21,11 @@ if __name__ == '__main__':
   num_hidden = 256
   lr = 0.0001
   log_interval = 1000
-  num_blocks = 7
+  num_blocks = 10
   epochs = 30
   batch_size = 100
   gestures = None
+  angles=False
   
   
   """param.(batch_size, lr, total_it)"""
@@ -32,7 +33,7 @@ if __name__ == '__main__':
   print(device)
 
   if dataset == 'hands':
-    ds = MSRADataset(image=False, angles=True, gestures=gestures, rotate=True)
+    ds = MSRADataset(image=False, angles=angles, gestures=gestures, rotate=True)
 
   elif dataset == 'moons':
     ds = Moon()
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     batch_size=batch_size,
     shuffle=True)
   
-  model = fnn.FlowSequential(num_blocks, num_inputs, num_hidden, device)
+  model = fnn.FlowSequential(num_blocks, num_inputs, num_hidden, device, n_latent=2 if angles else 0)
   
   for module in model.modules():
     if isinstance(module, nn.Linear):
@@ -69,9 +70,13 @@ if __name__ == '__main__':
     model.train()
     for batch_idx, data in enumerate(train_loader):
       optimizer.zero_grad()
-      jts, azim, elev = data['jts'].to(device), data['azim'].to(device), data['elev'].to(device)
+      if type(data) is dict:
+        jts, azim, elev = data['jts'].to(device), data['azim'].to(device), data['elev'].to(device)
+        loss = -model.log_prob(jts, azim, elev).mean()
+     
+      else:
+        loss = -model.log_prob(data.to(device)).mean()
 
-      loss = -model.log_prob(jts, azim, elev).mean()
       loss.backward(retain_graph=True)
       optimizer.step()
  
