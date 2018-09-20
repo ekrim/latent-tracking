@@ -17,15 +17,15 @@ import geometry as geo
 
 
 if __name__ == '__main__':
-  dataset = 'hands'
-  num_hidden = 256
+  dataset = 'moons'
+  num_hidden = 100
   lr = 0.0001
   log_interval = 1000
-  num_blocks = 10
-  epochs = 30
+  num_blocks = 3 
+  epochs = 15 
   batch_size = 100
   gestures = None
-  angles=False
+  angles = False
   
   
   """param.(batch_size, lr, total_it)"""
@@ -117,9 +117,11 @@ if __name__ == '__main__':
     elif dataset == 'moons':
       ax = fig.add_subplot(111)
       ax.plot(ds.x[:,0], ds.x[:,1], '.')
+      ax.set_title('Original data')
 
       fig = plt.figure()
       ax = fig.add_subplot(111)
       ax.plot(synth[:,0], synth[:,1], '.')
+      ax.set_title('Generated data')
 
     plt.show()

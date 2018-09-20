@@ -27,6 +27,7 @@ if __name__ == '__main__':
   parser.add_argument('--display_pose', action='store_true', help='display pose estimates')
   parser.add_argument('--filter_pose', action='store_true', help='kalman filter pose smoothing')
   parser.add_argument('--display_flow', action='store_true', help='generate synthetic poses and display them')
+  parser.add_argument('--display_bad', action='store_true', help='show a good and bad hand')
   parser.add_argument('--interpolate', action='store_true', help='run interpolation experiment')
   parser.add_argument('--interpolate_full', action='store_true', help='run interpolation through multiple keyframes')
   parser.add_argument('--neighborhood', action='store_true', help='run neighborhood generation')
@@ -63,6 +64,19 @@ if __name__ == '__main__':
   pose_fnc2 = lambda x: pose_mod2(x.to(device)).detach().cpu().numpy() 
 
   
+  if args.display_bad:
+    # display good and bad pose
+    n_plot = 10
+    z = np.random.randn(n_plot, dim_in)
+
+    hand_pose = gen_fnc(z)
+    
+    for i in range(n_plot):
+      fig = plt.figure()
+      ax = fig.add_subplot(111, projection='3d') 
+      geo.plot_skeleton3d(hand_pose[i], ax, autoscale=False)
+
+
   if args.display_flow:
     n_plots = 4
     # display generated poses

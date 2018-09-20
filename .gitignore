@@ -7,3 +7,5 @@ MSRA/
 **/*.pyc
 **/*.swp
 **/*.swo
+**/*.swn
+**/*.swm
