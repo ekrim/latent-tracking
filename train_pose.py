@@ -23,7 +23,7 @@ def train(param):
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   print(device)
 
-  ds = MSRADataset(image=True, subjects=[s for s in SUBJECTS if s != 'P8'])
+  ds = MSRADataset(image=True, rotate=param.rotate, subjects=[s for s in SUBJECTS if s != 'P8'])
   dl = DataLoader(
     ds,
     num_workers=4,
@@ -38,20 +38,24 @@ def train(param):
   optimizer = torch.optim.Adam([p for p in pose_mod.parameters() if p.requires_grad == True], lr=param.lr)
 
   # flow model
-  flow_mod = flows.FlowSequential(10, 63, 256, device)
-  flow_mod = geo.load_model(flow_mod, 'models/maf_all_noang_10_200.pytorch', device)
-  flow_mod.eval()
-  enc_fnc = lambda x: flow_mod.forward(torch.from_numpy(x.astype(np.float32)).to(device))[0]
+  if param.predict_z:
+    flow_mod = flows.FlowSequential(param.flow_blocks, 63, param.flow_dim, device)
+    flow_mod = geo.load_model(flow_mod, param.flow_model, device)
+    flow_mod.eval()
+    enc_fnc = lambda x: flow_mod.forward(torch.from_numpy(x.astype(np.float32)).to(device))[0]
 
   it, print_cnt = 0, 0
   while it < param.total_it:
     for i, data in enumerate(dl):
       optimizer.zero_grad()
       inputs, labels = data['img'].to(device), data['jts'].to(device)
-      with torch.no_grad():
-        z_labels = flow_mod.forward(labels)[0]
       outputs = pose_mod(inputs)   
-      loss = criterion(outputs, z_labels)
+      if param.predict_z:
+        with torch.no_grad():
+          z_labels = flow_mod.forward(labels)[0]
+        loss = criterion(outputs, z_labels)
+      else:
+        loss = criterion(outputs, labels)
       loss.backward()
       optimizer.step()
    
@@ -61,7 +65,7 @@ def train(param):
         print('it {:d} -- loss {:.03f}'.format(it, loss))
         print_cnt = 0
 
-    torch.save(pose_mod.state_dict(), 'models/pose_model_z.pytorch')
+    torch.save(pose_mod.state_dict(), param.model)
 
 
 if __name__ == '__main__':
@@ -69,6 +73,12 @@ if __name__ == '__main__':
   parser.add_argument('--batch_size', default=64, type=int, help='batch size')
   parser.add_argument('--total_it', default=300000, type=int, help='number of training samples')
   parser.add_argument('--lr', default=1e-4, type=float, help='learning rate')
+  parser.add_argument('--model', default='models/pose_model.pytorch', help='file to save pose model to')
+  parser.add_argument('--rotate', action='store_true', help='rotate training data')
 
+  parser.add_argument('--predict_z', action='store_true', help='predict poses in z space')
+  parser.add_argument('--flow_model', default='models/maf_all_10_256_30e.pytorch', help='trained flow model')
+  parser.add_argument('--flow_blocks', default=10, type=int, help='number of stacked blocks of flow')
+  parser.add_argument('--flow_dim', default=256, type=int, help='number of neurons in flow blocks')
   args = parser.parse_args(sys.argv[1:])
   train(args)

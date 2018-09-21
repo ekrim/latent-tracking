@@ -233,7 +233,7 @@ def load_model(mod, mod_file, device):
   return mod
 
 
-def lim_axes(ax, lim=[-0.8, 0.8]):
+def lim_axes(ax, lim=[-1, 1]):
   ax.set_xlim(lim)
   ax.set_ylim(lim)
 

@@ -17,15 +17,17 @@ import geometry as geo
 
 
 if __name__ == '__main__':
-  dataset = 'moons'
-  num_hidden = 100
+  dataset = 'hands'
+  model_file = 'models/maf_norot.pytorch'
+  num_hidden = 256 
   lr = 0.0001
   log_interval = 1000
-  num_blocks = 3 
-  epochs = 15 
+  num_blocks = 10
+  epochs = 30
   batch_size = 100
   gestures = None
   angles = False
+  rotate = False
   
   
   """param.(batch_size, lr, total_it)"""
@@ -33,7 +35,7 @@ if __name__ == '__main__':
   print(device)
 
   if dataset == 'hands':
-    ds = MSRADataset(image=False, angles=angles, gestures=gestures, rotate=True)
+    ds = MSRADataset(image=False, angles=angles, gestures=gestures, rotate=rotate)
 
   elif dataset == 'moons':
     ds = Moon()
@@ -96,7 +98,7 @@ if __name__ == '__main__':
   for epoch in range(epochs):
     train(epoch)
 
-  torch.save(model.state_dict(), 'models/maf_model.pytorch')
+  torch.save(model.state_dict(), model_file)
 
   model.eval()
   with torch.no_grad():

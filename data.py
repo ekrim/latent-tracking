@@ -90,6 +90,7 @@ class MSRADataset(Dataset):
 
     if self.image:
       img = load_image_bin(self.depth_files[idx])
+      img = 255*img/img.max()
       pil_img = PIL.Image.fromarray(img)
       width, height = pil_img.size
 

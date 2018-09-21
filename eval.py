@@ -21,9 +21,11 @@ from model import RealNVP, PoseModel
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--flow_model', default='models/flow_model.pytorch', help='trained RealNVP model')
-  parser.add_argument('--pose_model', default='models/pose_model.pytorch', help='trained pose model')
+  parser.add_argument('--pose_model', default='models/pose_new.pytorch', help='trained pose model')
+  parser.add_argument('--pose_model_z', default='models/pose_z_new.pytorch', help='trained pose model')
   parser.add_argument('--dim_in', default=63, type=int, help='dimensionality of input data')
   parser.add_argument('--model_type', default='maf', help='maf or realnvp')
+
   parser.add_argument('--display_pose', action='store_true', help='display pose estimates')
   parser.add_argument('--filter_pose', action='store_true', help='kalman filter pose smoothing')
   parser.add_argument('--display_flow', action='store_true', help='generate synthetic poses and display them')
@@ -53,7 +55,7 @@ if __name__ == '__main__':
   pose_mod.eval()
 
   pose_mod2 = PoseModel()
-  pose_mod2 = geo.load_model(pose_mod2, 'models/pose_model_z.pytorch', device)
+  pose_mod2 = geo.load_model(pose_mod2, args.pose_model_z, device)
   pose_mod2.eval()
 
   gen_fnc = lambda z: flow_mod.g(torch.from_numpy(z.astype(np.float32)).to(device)).detach().cpu().numpy()
@@ -101,7 +103,7 @@ if __name__ == '__main__':
 
     # regress poses and display
     ds = MSRADataset(subjects=[subject], gestures=[gesture], max_buffer=4, image=True)
-    dl = DataLoader(ds, batch_size=5, shuffle=False)
+    dl = DataLoader(ds, batch_size=500, shuffle=False)
 
     batch = dl.__iter__().__next__()
     pred_pose = pose_fnc(batch['img'])
@@ -110,6 +112,11 @@ if __name__ == '__main__':
     true_pose = batch['jts'].detach().cpu().numpy()
     L = true_pose.shape[0] 
     img = batch['img'].detach().cpu().numpy()
+    #new_img = img.flatten()
+    #zeros = new_img < 0.9
+    clip = 0.6
+    #new_img[np.logical_not(zeros)] = 1 - new_img[np.logical_not(zeros)]
+    #img = new_img.reshape(img.shape)  
     z_pose = enc_fnc(pred_pose)
     
     plt_img, plt_true, plt_pred = 131, 132, 133
@@ -136,47 +143,56 @@ if __name__ == '__main__':
     print('z smoothed error: {}'.format(z_mse))
     print('x smoothed error: {}'.format(x_mse))
     for i in range(L):
-      fig = plt.figure()
+      fig = plt.figure(figsize=(6,8))
 
       ax = fig.add_subplot(plt_pred)
-      ax = geo.plot_skeleton2d(pred_pose[idx+i], ax, autoscale=False)
+      ax = geo.plot_skeleton2d(pred_pose[idx+i], ax, autoscale=False, axes=False)
       geo.lim_axes(ax)
       ax.set_title('Predicted')
 
       ax = fig.add_subplot(plt_true)
-      ax = geo.plot_skeleton2d(true_pose[idx+i], ax, autoscale=False)
+      ax = geo.plot_skeleton2d(true_pose[idx+i], ax, autoscale=False, axes=False)
       geo.lim_axes(ax)
       ax.set_title('True')
 
       ax = fig.add_subplot(plt_img)
-      ax.imshow(np.clip(img[idx+i,0], 0.9, 1), cmap='Greys_r')
+      #ax.imshow(np.clip(img[idx+i,0], 0.6, 1), cmap='Greys_r')
+      ax.imshow(np.clip(img[idx+i,0], clip, 1), cmap='Greys_r')
       ax.set_title('Depth image')
+      ax.get_xaxis().set_visible(False)
+      ax.get_yaxis().set_visible(False)
       
       if args.filter_pose:
         ax = fig.add_subplot(plt_predz)
-        ax = geo.plot_skeleton2d(pred_z_orig[idx+i], ax, autoscale=False)
+        ax = geo.plot_skeleton2d(pred_z_orig[idx+i], ax, autoscale=False, axes=False)
         geo.lim_axes(ax)
         ax.set_title('Pred Z')
 
         ax = fig.add_subplot(plt_zkf)
-        ax = geo.plot_skeleton2d(pred_z_smooth[idx+i], ax, autoscale=False)
+        ax = geo.plot_skeleton2d(pred_z_smooth[idx+i], ax, autoscale=False, axes=False)
         geo.lim_axes(ax)
         ax.set_title('Z KF smoothed')
 
         ax = fig.add_subplot(plt_xkf)
-        ax = geo.plot_skeleton2d(input_smoothed[idx+i], ax, autoscale=False)
+        ax = geo.plot_skeleton2d(input_smoothed[idx+i], ax, autoscale=False, axes=False)
         geo.lim_axes(ax)
         ax.set_title('KF smoothed')
+
+      fig.subplots_adjust(wspace=-0.5, hspace=0.4)
 
       plt.savefig('pose_{:03d}.png'.format(i))
       plt.close(fig)
 
 
   if args.neighborhood:
+    print('displaying generated neighborhood')
     n_neigh, idx = 8, 100
     std = 0.4
     subject = 'P1'
-    seq = 'TIP'
+    seq = np.random.choice(GESTURES)
+    print(seq)
+    #subject = 'P1'
+    #seq = 'TIP'
 
     img, pose = get_hand(subject, seq, idx=idx)
 
@@ -186,13 +202,15 @@ if __name__ == '__main__':
 
     fig = plt.figure()
     ax = fig.add_subplot(335)
-    ax.imshow(np.clip(img, 0.9, 1), cmap='Greys_r')
-    ax.set_title('Starting pose')
+    ax.imshow(np.clip(img, 0.6, 1), cmap='Greys_r')
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
 
     for i, i_plt in enumerate([1,2,3,4,6,7,8,9]):
       ax = fig.add_subplot('33{}'.format(i_plt))
       ax = geo.plot_skeleton2d(neighbors[i], ax, autoscale=False)
-      geo.lim_axes(ax)
+      geo.lim_axes(ax, lim=(-1.2, 1.2))
+    fig.subplots_adjust(wspace=-0.5, hspace=0)
 
 
   if args.interpolate:   
