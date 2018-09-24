@@ -79,7 +79,20 @@ class MSRADataset(Dataset):
     jts = jts/80
     
     if self.rotate: 
-      jts = geo.rotate(jts, -np.pi + 2*np.pi*np.random.rand(), axis='y')
+      theta = -np.pi + 2*np.pi*np.random.rand()
+      az, el = -np.pi + 2*np.pi*np.random.rand(2)
+      x = np.cos(az) * np.cos(el)
+      y = np.sin(az) * np.cos(el)
+      z = np.sin(el)
+    
+      R = np.float32([
+        [np.cos(theta)+x*x*(1-np.cos(theta)), x*y*(1-np.cos(theta))-z*np.sin(theta), x*z*(1-np.cos(theta))+y*np.sin(theta)],
+        [y*x*(1-np.cos(theta))+z*np.sin(theta), np.cos(theta)+y*y*(1-np.cos(theta)), y*z*(1-np.cos(theta))-x*np.sin(theta)],
+        [z*x*(1-np.cos(theta))-y*np.sin(theta), z*y*(1-np.cos(theta))+x*np.sin(theta), np.cos(theta)+z*z*(1-np.cos(theta))]])
+
+      jts = np.dot(R, jts.transpose()).transpose().astype(np.float32)
+      #jts = geo.rand_rotate(jts, -np.pi + 2*np.pi*np.random.rand(), az, el)
+      #jts = geo.rotate(jts, -np.pi + 2*np.pi*np.random.rand(), axis='y')
 
     if self.angles:
       azim, elev = geo.get_angles(jts)

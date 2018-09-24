@@ -126,22 +126,20 @@ if __name__ == '__main__':
       dt = 0.1
 
       # Q = 15
-      P, Q, R = 0.5, 100.0, 10.0
+      P, Q, R = 0.5, 10.0, 10.0
       z_param = {'P': P, 'Q': Q, 'R': R, 'dt': dt}
       x_param = {'P': P, 'Q': Q, 'R': R, 'dt': dt}
 
-      z_smooth = kf.kalman_filter3d(z_pose, **z_param)
-      latent_smoothed = gen_fnc(z_smooth)
-      input_smoothed = kf.kalman_filter3d(pred_pose, **x_param)
+      input_smoothed = kf.kalman_filter_const_acc(pred_pose, **x_param)
  
-      pred_z_smooth = kf.kalman_filter3d(pred_pose_z, **z_param)
+      pred_z_smooth = kf.kalman_filter_const_acc(pred_pose_z, **z_param)
       pred_z_smooth = gen_fnc(pred_z_smooth)
       pred_z_orig = gen_fnc(pred_pose_z)
 
       plt_img, plt_true, plt_pred, plt_xkf, plt_predz, plt_zkf = 322, 321, 323, 324, 325, 326
 
-    z_mse = np.mean(((true_pose - pred_z_smooth)**2).flatten())
-    x_mse = np.mean(((true_pose - input_smoothed)**2).flatten())
+    z_mse = np.mean(((true_pose - pred_pose_z)**2).flatten())
+    x_mse = np.mean(((true_pose - pred_pose)**2).flatten())
     print('z smoothed error: {}'.format(z_mse))
     print('x smoothed error: {}'.format(x_mse))
     for i in range(L):

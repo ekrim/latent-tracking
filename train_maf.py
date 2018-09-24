@@ -18,7 +18,7 @@ import geometry as geo
 
 if __name__ == '__main__':
   dataset = 'hands'
-  model_file = 'models/maf_norot.pytorch'
+  model_file = 'models/maf_aarot.pytorch'
   num_hidden = 256 
   lr = 0.0001
   log_interval = 1000
@@ -27,7 +27,7 @@ if __name__ == '__main__':
   batch_size = 100
   gestures = None
   angles = False
-  rotate = False
+  rotate = True
   
   
   """param.(batch_size, lr, total_it)"""

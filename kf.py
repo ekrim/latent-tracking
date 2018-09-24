@@ -6,6 +6,54 @@ from filterpy.kalman import KalmanFilter
 from filterpy.common import Q_discrete_white_noise
 
 
+def kalman_filter_const_acc(z, P=0.5, Q=0.5, R=10.0, dt=0.5):
+  """
+  Args:
+    z: (n_time_steps, 3*n_pts) ndarray of pts to be tracked
+    P: error covariance
+    Q: process noise
+    R: measurement noise
+    dt: time step delta
+
+  """
+  n_dim = z.shape[1]
+  dt2 = 0.5 * dt**2
+
+  # one filter per joint 
+  filters = [KalmanFilter(dim_x=9, dim_z=3) for i in range(n_dim//3)]
+  for i, f in enumerate(filters):
+    f.x = np.append(z[0, 3*i:3*(i+1)], [0, 0, 0, 0, 0, 0])
+
+    f.F = np.float32([
+      [1, 0, 0, dt,  0,  0,  dt2,   0,   0],
+      [0, 1, 0,  0, dt,  0,    0, dt2,   0],
+      [0, 0, 1,  0,  0, dt,    0,   0, dt2],
+      [0, 0, 0,  1,  0,  0,   dt,   0,   0],
+      [0, 0, 0,  0,  1,  0,    0,  dt,   0],
+      [0, 0, 0,  0,  0,  1,    0,   0,  dt],
+      [0, 0, 0,  0,  0,  0,    1,   0,   0],
+      [0, 0, 0,  0,  0,  0,    0,   1,   0],
+      [0, 0, 0,  0,  0,  0,    0,   0,   1]])
+
+    f.H = np.float32([
+      [1, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 1, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 1, 0, 0, 0, 0, 0, 0]])
+
+    f.P *= P
+    f.R *= R
+    f.Q = Q_discrete_white_noise(dim=3, dt=dt, var=Q, block_size=3, order_by_dim=False)
+
+  z_smooth = np.zeros(z.shape)
+  for i_row in range(z.shape[0]):
+    for i_pt, f in enumerate(filters):
+      f.predict()
+      f.update(z[i_row, 3*i_pt:3*(i_pt+1)])
+      z_smooth[i_row, 3*i_pt:3*(i_pt+1)] = f.x[:3].copy()
+
+  return z_smooth
+
+
 def kalman_filter3d(z, P=0.5, Q=0.5, R=10.0, dt=0.5):
   """
   Args:

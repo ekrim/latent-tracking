@@ -107,8 +107,14 @@ def plot_skeleton3d(x, ax, autoscale=True, axes=True):
 def plot_skeleton2d(x, ax, autoscale=True, axes=False):
   if x.shape[-1] != 3:
     x = x.reshape((-1, 3))
+  
+  x[:,2] = -x[:,2]
 
-  for obj in HAND:
+  z = np.array([x[obj.pts[0], 2] for obj in HAND])
+  plot_order = np.argsort(-z)
+   
+  for idx in plot_order:
+    obj = HAND[idx]
     ax.plot(x[obj.pts, 0], x[obj.pts, 1], '.'+obj.pt_color, markersize=obj.pt_size)
     for idx_pair in obj.connections:
       ax.plot(x[idx_pair, 0], x[idx_pair, 1], obj.conn_color)
@@ -200,6 +206,19 @@ def fix_2pi(z):
 def closer_angle(ang1, ang2, k_max=30):
   ang_candidates = 2*np.pi*np.arange(-k_max, k_max+1) + ang2
   return ang_candidates[np.argmin(np.abs(ang1 - ang_candidates))]
+
+
+def rand_rotate(x, theta, az, el):
+  x = np.cos(az) * np.cos(el)
+  y = np.sin(az) * np.cos(el)
+  z = np.sin(el)
+
+  R = np.float32([
+    [np.cos(theta)+x*x*(1-np.cos(theta)), x*y*(1-np.cos(theta))-z*np.sin(theta), x*z*(1-np.cos(theta))+y*np.sin(theta)],
+    [y*x*(1-np.cos(theta))+z*np.sin(theta), np.cos(theta)+y*y*(1-np.cos(theta)), y*z*(1-np.cos(theta))-x*np.sin(theta)],
+    [z*x*(1-np.cos(theta))-y*np.sin(theta), z*y*(1-np.cos(theta))+x*np.sin(theta), np.cos(theta)+z*z*(1-np.cos(theta))]])
+
+  return np.dot(R, x.transpose()).transpose().astype(np.float32)
 
 
 def rotate(x, theta, axis='x'):
