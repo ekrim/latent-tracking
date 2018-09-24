@@ -13,7 +13,7 @@ import data
 
 JOINTS = 'wrist index_mcp index_pip index_dip index_tip middle_mcp middle_pip middle_dip middle_tip ring_mcp ring_pip ring_dip ring_tip little_mcp little_pip little_dip little_tip thumb_mcp thumb_pip thumb_dip thumb_tip'.split(' ')
 
-MS = 20
+MS = 15
 MS2 = 30
 
 HandPart = namedtuple('HandPart', 'connections conn_color pts pt_color pt_size')

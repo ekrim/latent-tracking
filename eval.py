@@ -80,16 +80,18 @@ if __name__ == '__main__':
 
 
   if args.display_flow:
-    n_plots = 4
-    # display generated poses
-    hand_pose = gen_fnc(np.random.randn(n_plots, dim_in))
+    print('displaying random draws')
+    n_pts = 6
     
+    z = 0.8*np.random.randn(n_pts, dim_in)
+    neighbors = gen_fnc(z) 
+
     fig = plt.figure()
-    for i in range(n_plots):
-      ax = fig.add_subplot('22{:d}'.format(i+1))
-      geo.plot_skeleton2d(hand_pose[i], ax, autoscale=False)
-      ax.set_xlim([-0.8, 0.8])
-      ax.set_ylim([-0.8, 0.8])
+    for i in range(n_pts):
+      ax = fig.add_subplot(2,3,i+1, projection='3d')
+      ax = geo.plot_skeleton3d(neighbors[i], ax, autoscale=False)
+      #geo.lim_axes(ax, lim=(-1.2, 1.2))
+    fig.subplots_adjust(wspace=-0.5, hspace=0)
 
 
   if args.display_pose:
