@@ -208,7 +208,23 @@ def closer_angle(ang1, ang2, k_max=30):
   return ang_candidates[np.argmin(np.abs(ang1 - ang_candidates))]
 
 
+def random_quaternion():
+  """Taken from 'Planning Algorithms', Stven LaValle, Eq. 5.15"""
+  u1, u2, u3 = np.random.rand(3)
+  u1sq1 = np.sqrt(1-u1)
+  u1sq2 = np.sqrt(u1)
+  q = np.float32([
+    u1sq1*np.sin(2*np.pi*u2), 
+    u1sq1*np.cos(2*np.pi*u2),
+    u1sq2*np.sin(2*np.pi*u3),
+    u1sq2*np.cos(2*np.pi*u3)]).astype(np.float32)
+  
+  print(np.sqrt(np.sum(q**2)))
+  return 
+
+
 def rand_rotate(x, theta, az, el):
+  """axis angle rotation"""
   x = np.cos(az) * np.cos(el)
   y = np.sin(az) * np.cos(el)
   z = np.sin(el)

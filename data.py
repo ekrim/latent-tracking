@@ -91,8 +91,6 @@ class MSRADataset(Dataset):
         [z*x*(1-np.cos(theta))-y*np.sin(theta), z*y*(1-np.cos(theta))+x*np.sin(theta), np.cos(theta)+z*z*(1-np.cos(theta))]])
 
       jts = np.dot(R, jts.transpose()).transpose().astype(np.float32)
-      #jts = geo.rand_rotate(jts, -np.pi + 2*np.pi*np.random.rand(), az, el)
-      #jts = geo.rotate(jts, -np.pi + 2*np.pi*np.random.rand(), axis='y')
 
     if self.angles:
       azim, elev = geo.get_angles(jts)
