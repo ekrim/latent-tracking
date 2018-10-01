@@ -329,6 +329,12 @@ class CouplingLayer(nn.Module):
 
 
 def log_wrapped_normal_pdf(angle, mean, std, k_max=50):
+    """TODO: should be using von mises distribution:
+
+      e^(k*cos(x-mu))/(2*pi*I_0(k))
+
+    where I_0 is the modified Bessel function of order 0
+    """
     pdf = torch.zeros_like(angle).to(angle.device)
     for k in range(-k_max, k_max+1):
         pdf += torch.exp(-(angle - mean + 2*np.pi*k)**2 / (2*std)**2)

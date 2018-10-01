@@ -208,19 +208,34 @@ def closer_angle(ang1, ang2, k_max=30):
   return ang_candidates[np.argmin(np.abs(ang1 - ang_candidates))]
 
 
+def hamilton_product(q1, q2):
+  q = np.float32([
+    q1[0]*q2[0] - q1[1]*q2[1] - q1[2]*q2[2] - q1[3]*q2[3], 
+    q1[0]*q2[1] + q1[1]*q2[0] + q1[2]*q2[3] - q1[3]*q2[2], 
+    q1[0]*q2[2] - q1[1]*q2[3] + q1[2]*q2[0] + q1[3]*q2[1], 
+    q1[0]*q2[3] + q1[1]*q2[2] - q1[2]*q2[1] + q1[3]*q2[0]])
+  return q
+
+
+def quaternion_rotation(q, v):
+  u = np.append(0.0, v)
+  mask = np.float32([1, -1, -1, -1])
+  return hamilton_product(q, hamilton_product(u, mask*q))[1:]
+
+
 def random_quaternion():
   """Taken from 'Planning Algorithms', Stven LaValle, Eq. 5.15"""
   u1, u2, u3 = np.random.rand(3)
   u1sq1 = np.sqrt(1-u1)
   u1sq2 = np.sqrt(u1)
+
   q = np.float32([
     u1sq1*np.sin(2*np.pi*u2), 
     u1sq1*np.cos(2*np.pi*u2),
     u1sq2*np.sin(2*np.pi*u3),
     u1sq2*np.cos(2*np.pi*u3)]).astype(np.float32)
   
-  print(np.sqrt(np.sum(q**2)))
-  return 
+  return q
 
 
 def rand_rotate(x, theta, az, el):
@@ -310,4 +325,3 @@ if __name__ == '__main__':
   ax = fig.add_subplot(111)
   ax = joints_over_depth(jts, img, ax)
   plt.show()
-  
