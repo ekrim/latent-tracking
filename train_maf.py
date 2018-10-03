@@ -18,7 +18,7 @@ import geometry as geo
 
 if __name__ == '__main__':
   dataset = 'hands'
-  model_file = 'models/maf_aarot.pytorch'
+  model_file = 'models/maf_q.pytorch'
   num_hidden = 256 
   lr = 0.0001
   log_interval = 1000
@@ -26,7 +26,7 @@ if __name__ == '__main__':
   epochs = 30
   batch_size = 100
   gestures = None
-  angles = False
+  angles = True 
   rotate = True
   
   
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     batch_size=batch_size,
     shuffle=True)
   
-  model = fnn.FlowSequential(num_blocks, num_inputs, num_hidden, device, n_latent=2 if angles else 0)
+  model = fnn.FlowSequential(num_blocks, num_inputs, num_hidden, device, n_latent=4 if angles else 0)
   
   for module in model.modules():
     if isinstance(module, nn.Linear):
@@ -73,8 +73,8 @@ if __name__ == '__main__':
     for batch_idx, data in enumerate(train_loader):
       optimizer.zero_grad()
       if type(data) is dict:
-        jts, azim, elev = data['jts'].to(device), data['azim'].to(device), data['elev'].to(device)
-        loss = -model.log_prob(jts, azim, elev).mean()
+        jts, q = data['jts'].to(device), data['q'].to(device)
+        loss = -model.log_prob(jts, q).mean()
      
       else:
         loss = -model.log_prob(data.to(device)).mean()

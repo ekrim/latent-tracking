@@ -182,6 +182,34 @@ def normalize_dim(x, goal_min, goal_max, dim):
   return x
   
  
+def get_quaternion(jts):
+  v1 = jts[1] - jts[0]
+  v2 = jts[13] - jts[0]
+  
+  out = np.float32([
+    v1[1]*v2[2]-v2[1]*v1[2], 
+    v1[0]*v2[2]-v2[0]*v1[2], 
+    v1[0]*v2[1]-v2[0]*v1[1]])
+
+  heading = np.arctan2(out[[1]], out[[0]])[0]
+  attitude = np.arctan2(out[[2]], out[[0]])[0] - np.pi/2
+
+  c1 = np.cos(heading/2)
+  c2 = np.cos(attitude/2)
+  c3 = 1
+  s1 = np.sin(heading/2)
+  s2 = np.sin(attitude/2)
+  s3 = 0
+  
+  q = np.float32([
+    c1*c2*c3 - s1*s2*s3,
+    s1*s2*c3 + c1*c2*s3,
+    s1*c2*c3 + c1*s2*s3,
+    c1*s2*c3 - s1*c2*s3])
+   
+  return q 
+
+
 def get_angles(jts):
   v1 = jts[1] - jts[0]
   v2 = jts[13] - jts[0]
@@ -209,18 +237,20 @@ def closer_angle(ang1, ang2, k_max=30):
 
 
 def hamilton_product(q1, q2):
-  q = np.float32([
-    q1[0]*q2[0] - q1[1]*q2[1] - q1[2]*q2[2] - q1[3]*q2[3], 
-    q1[0]*q2[1] + q1[1]*q2[0] + q1[2]*q2[3] - q1[3]*q2[2], 
-    q1[0]*q2[2] - q1[1]*q2[3] + q1[2]*q2[0] + q1[3]*q2[1], 
-    q1[0]*q2[3] + q1[1]*q2[2] - q1[2]*q2[1] + q1[3]*q2[0]])
+  q = np.concatenate([
+    q1[:,[0]]*q2[:,[0]] - q1[:,[1]]*q2[:,[1]] - q1[:,[2]]*q2[:,[2]] - q1[:,[3]]*q2[:,[3]], 
+    q1[:,[0]]*q2[:,[1]] + q1[:,[1]]*q2[:,[0]] + q1[:,[2]]*q2[:,[3]] - q1[:,[3]]*q2[:,[2]], 
+    q1[:,[0]]*q2[:,[2]] - q1[:,[1]]*q2[:,[3]] + q1[:,[2]]*q2[:,[0]] + q1[:,[3]]*q2[:,[1]], 
+    q1[:,[0]]*q2[:,[3]] + q1[:,[1]]*q2[:,[2]] - q1[:,[2]]*q2[:,[1]] + q1[:,[3]]*q2[:,[0]]], axis=1)
   return q
 
 
 def quaternion_rotation(q, v):
-  u = np.append(0.0, v)
-  mask = np.float32([1, -1, -1, -1])
-  return hamilton_product(q, hamilton_product(u, mask*q))[1:]
+  q = q.reshape((1, -1))
+  u = np.concatenate([np.zeros((v.shape[0], 1)), v], axis=1).astype(np.float32)
+  mask = np.float32([[1, -1, -1, -1]])
+  u_new = hamilton_product(u, mask*q)
+  return hamilton_product(q, u_new)[:, 1:]
 
 
 def random_quaternion():
@@ -308,20 +338,13 @@ def interpolate(x, n):
 
 
 if __name__ == '__main__':
-  subject = sys.argv[1]
-  sequence = sys.argv[2]
   
-  joint_file = 'MSRA/{}/{}/joint.txt'.format(subject, sequence)
-  print(joint_file)
-  jts = data.load_joints(joint_file)
+  img, jts = data.get_hand('P1', '5')
+  
+  q = get_quaternion(jts.reshape((-1, 3)))
   
   fig = plt.figure()
   ax = fig.add_subplot(111, projection='3d')
-  plot_skeleton3d(jts[0], ax)
+  plot_skeleton3d(jts, ax)
 
-  img = PIL.Image.open('MSRA/P4/9/000000_depth.jpg')
-
-  fig = plt.figure()
-  ax = fig.add_subplot(111)
-  ax = joints_over_depth(jts, img, ax)
   plt.show()

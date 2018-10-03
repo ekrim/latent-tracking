@@ -358,25 +358,24 @@ class FlowSequential(nn.Sequential):
           else:
             modules += [
               MADE(num_inputs, num_hidden),
-              #BatchNormFlow(num_inputs),
               Shuffle(num_inputs)]
 
         super(FlowSequential, self).__init__(*modules)
 
         self.prior = torch.distributions.MultivariateNormal(torch.zeros(num_inputs-n_latent).to(device), torch.eye(num_inputs-n_latent).to(device))
+        self.q_prior = torch.distributions.MultivariateNormal(torch.zeros(n_latent).to(device), torch.eye(n_latent).to(device))
 
-    def f(self, x, azim=None, elev=None, wn_std=0.5):
-        """wn_std: was 0.5"""
+    def f(self, x, q=None, std=0.1):
         z, log_det = self.forward(x, mode='direct')
 
-        idx = 0 if azim is None else 2
+        idx = 0 if q is None else 4
+       
         log_prob = self.prior.log_prob(z[:,idx:]) + \
                    log_det.view(-1)
 
-        if azim is not None:
-            log1 = log_wrapped_normal_pdf(z[:,0], azim.view(-1), wn_std) 
-            log2 = log_wrapped_normal_pdf(z[:,1], elev.view(-1), wn_std)
-            log_prob += log1 + log2
+        if q is not None:
+            log_q = self.q_prior.log_prob((z[:,:idx] - q)/float(std))
+            log_prob += log_q
         
         return z, log_prob
     
@@ -384,8 +383,8 @@ class FlowSequential(nn.Sequential):
         x, _ = self.forward(z, mode='inverse')
         return x
  
-    def log_prob(self, x, azim=None, elev=None):
-        _, log_prob = self.f(x, azim, elev)
+    def log_prob(self, x, q=None):
+        _, log_prob = self.f(x, q)
         return log_prob 
 
     def forward(self, inputs, mode='direct', logdets=None):

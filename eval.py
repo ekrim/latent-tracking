@@ -43,7 +43,7 @@ if __name__ == '__main__':
     flow_mod = RealNVP(args.dim_in, device, n_hid=256, n_mask=10)
 
   elif args.model_type == 'maf':
-    flow_mod = flows.FlowSequential(10, args.dim_in, 256, device)
+    flow_mod = flows.FlowSequential(10, args.dim_in, 256, device, n_latent=4)
 
   else:
     raise ValueError('no such flow')
