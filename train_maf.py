@@ -19,11 +19,11 @@ import geometry as geo
 if __name__ == '__main__':
   dataset = 'hands'
   model_file = 'models/maf_q.pytorch'
-  num_hidden = 256 
+  num_hidden = 300 
   lr = 0.0001
   log_interval = 1000
-  num_blocks = 10
-  epochs = 30
+  num_blocks = 7
+  epochs = 80
   batch_size = 100
   gestures = None
   angles = True 
@@ -68,13 +68,13 @@ if __name__ == '__main__':
       loss /= u.size(0)
     return loss
   
-  def train(epoch):
+  def train(epoch, std=0.1):
     model.train()
     for batch_idx, data in enumerate(train_loader):
       optimizer.zero_grad()
       if type(data) is dict:
         jts, q = data['jts'].to(device), data['q'].to(device)
-        loss = -model.log_prob(jts, q).mean()
+        loss = -model.log_prob(jts, q, std=std).mean()
      
       else:
         loss = -model.log_prob(data.to(device)).mean()
@@ -95,8 +95,20 @@ if __name__ == '__main__':
       if isinstance(module, fnn.BatchNormFlow):
         module.momentum = 1
 
+    return loss.item()
+
+  last_loss = np.inf
+  std = 0.3
+  print('std: {:.03f}'.format(std))
   for epoch in range(epochs):
-    train(epoch)
+    epoch_loss = train(epoch, std=std)
+    if epoch < epochs - 10:
+      if epoch_loss < last_loss:
+        std *= 0.95
+      else:
+        std *= 1.02
+    print('std: {:.03f}'.format(std))
+    last_loss = epoch_loss
 
   torch.save(model.state_dict(), model_file)
 

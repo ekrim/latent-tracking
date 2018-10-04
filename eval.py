@@ -1,5 +1,5 @@
-"""TODO:
-- Find finger movement example
+"""
+ffmpeg -r 12 -i interp_%03d.png interp.mp4
 """
 import sys
 import os
@@ -21,6 +21,8 @@ from model import RealNVP, PoseModel
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--flow_model', default='models/flow_model.pytorch', help='trained RealNVP model')
+  parser.add_argument('--flow_blocks', default=10, type=int, help='number of blocks of flow')
+  parser.add_argument('--neurons', default=256, type=int, help='number of neurons in the hidden layers')
   parser.add_argument('--pose_model', default='models/pose_new.pytorch', help='trained pose model')
   parser.add_argument('--pose_model_z', default='models/pose_z_new.pytorch', help='trained pose model')
   parser.add_argument('--dim_in', default=63, type=int, help='dimensionality of input data')
@@ -40,10 +42,10 @@ if __name__ == '__main__':
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
   if args.model_type == 'realnvp':
-    flow_mod = RealNVP(args.dim_in, device, n_hid=256, n_mask=10)
+    flow_mod = RealNVP(args.dim_in, device, n_hid=args.neurons, n_mask=args.flow_blocks)
 
   elif args.model_type == 'maf':
-    flow_mod = flows.FlowSequential(10, args.dim_in, 256, device, n_latent=4)
+    flow_mod = flows.FlowSequential(args.flow_blocks, args.dim_in, args.neurons, device, n_latent=4)
 
   else:
     raise ValueError('no such flow')
@@ -230,11 +232,14 @@ if __name__ == '__main__':
     # interp in latent space
     z = enc_fnc(geo.stack([pose1, pose2]))
    
-    print(z[:,:2])
-    #z = geo.fix_2pi(z)
-    print(z[:,:2])
+    norm = lambda x: np.sqrt(np.sum(x**2, axis=1))
+    print(z[0,:4])
+    print(geo.get_quaternion(pose1.reshape((-1, 3))))
    
     z_interp = geo.interpolate(z, n_interp) 
+    norms = norm(z_interp[:, :4])[:,None]
+    z_interp[:, :4] = z_interp[:, :4]/norms
+
     latent_interp = gen_fnc(z_interp)
 
     # plot prob trajectory

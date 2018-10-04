@@ -383,8 +383,8 @@ class FlowSequential(nn.Sequential):
         x, _ = self.forward(z, mode='inverse')
         return x
  
-    def log_prob(self, x, q=None):
-        _, log_prob = self.f(x, q)
+    def log_prob(self, x, q=None, std=0.1):
+        _, log_prob = self.f(x, q, std=std)
         return log_prob 
 
     def forward(self, inputs, mode='direct', logdets=None):

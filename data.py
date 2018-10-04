@@ -81,6 +81,7 @@ class MSRADataset(Dataset):
     if self.rotate: 
       q = geo.random_quaternion()
       jts = geo.quaternion_rotation(q, jts)
+      jts -= np.mean(jts, axis=0)[None,:]
   
     if self.angles:
       #azim, elev = geo.get_angles(jts)
