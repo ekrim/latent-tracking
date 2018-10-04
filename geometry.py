@@ -1,6 +1,7 @@
 import os
 import sys
 import PIL
+import colorsys
 from collections import namedtuple
 import numpy as np
 import pandas as pd
@@ -62,6 +63,126 @@ WRIST = HandPart(
 
 HAND = [INDEX, MIDDLE, RING, LITTLE, THUMB, WRIST]
 
+lw_w = 3
+lw_t1, lw_t2, lw_t3 = 2.8, 2.2, 2.1
+lw_l1, lw_l2, lw_l3 = 2.3, 1.5, 1.2
+lw_r1, lw_r2, lw_r3 = 2.4, 1.7, 1.4
+lw_m1, lw_m2, lw_m3 = 2.7, 2.0, 1.8
+lw_i1, lw_i2, lw_i3 = 2.8, 2.0, 1.8
+
+s_w = 30
+s_t1, s_t2, s_t3, s_t4 = 18, 16, 14, 12
+s_l1, s_l2, s_l3, s_l4 = 18, 16, 14, 12
+s_r1, s_r2, s_r3, s_r4 = 18, 16, 14, 12
+s_m1, s_m2, s_m3, s_m4 = 18, 16, 14, 12
+s_i1, s_i2, s_i3, s_i4 = 18, 16, 14, 12
+
+OBJECTS = [
+  ['l', 0, 17, lw_w],
+  ['l', 0, 1, lw_w],
+  ['l', 0, 5, lw_w],
+  ['l', 0, 9, lw_w],
+  ['l', 0, 13, lw_w],
+  ['l', 20, 19, lw_t3],
+  ['l', 19, 18, lw_t2],
+  ['l', 18, 17, lw_t1],
+  ['l', 16, 15, lw_l3],
+  ['l', 15, 14, lw_l2],
+  ['l', 14, 13, lw_l1],
+  ['l', 12, 11, lw_r3],
+  ['l', 11, 10, lw_r2],
+  ['l', 10, 9, lw_r1],
+  ['l', 8, 7, lw_m3],
+  ['l', 7, 6, lw_m2],
+  ['l', 6, 5, lw_m1],
+  ['l', 4, 3, lw_i3],
+  ['l', 3, 2, lw_i2],
+  ['l', 2, 1, lw_i1],
+  ['pt', 0, s_w, 2/3],  
+  ['pt', 17, s_t1, 0],
+  ['pt', 18, s_t2, 0],
+  ['pt', 19, s_t3, 0],
+  ['pt', 20, s_t4, 0],
+  ['pt', 13, s_l1, 0.2],  
+  ['pt', 14, s_l2, 0.2],
+  ['pt', 15, s_l3, 0.2],
+  ['pt', 16, s_l4, 0.2],
+  ['pt', 9, s_r1, 0.4],
+  ['pt', 10, s_r2, 0.4],
+  ['pt', 11, s_r3, 0.4],
+  ['pt', 12, s_r4, 0.4],
+  ['pt', 5, s_m1, 0.6],
+  ['pt', 6, s_m2, 0.6],
+  ['pt', 7, s_m3, 0.6],
+  ['pt', 8, s_m4, 0.6],
+  ['pt', 1, s_i1, 0.8],
+  ['pt', 2, s_i2, 0.8],
+  ['pt', 3, s_i3, 0.8],
+  ['pt', 4, s_i4, 0.8]]
+
+
+def depth_to_camera(jts, azim, elev):
+  L = 10
+  camera = np.float32([[L*np.cos(azim), L*np.sin(azim), L*np.sin(elev)]])
+  return np.sqrt(np.sum((jts - camera)**2, axis=1))
+
+
+def depth_to_value(depth):
+  depth_range = 0.4
+  d = -depth
+  d -= np.min(d)
+  d = d/np.max(d)
+  d *= depth_range
+  d += (1-depth_range)
+  return d
+
+
+def plot_skeleton3d(jts, ax, azim=30, elev=60, autoscale=False, axes=False):
+  if jts.shape[-1] != 3:
+    jts = jts.reshape((-1, 3)) 
+
+  depth = depth_to_camera(jts, azim*np.pi/180, elev*np.pi/180)
+  
+  depth_list = []
+  for obj in OBJECTS:
+    if obj[0] == 'l':
+      depth_list += [np.mean(depth[obj[1:3]])]
+    else:
+      depth_list += [depth[obj[1]]]
+  
+  depth_arr = np.array(depth_list)
+  furthest_idx = np.argsort(-depth_arr)
+ 
+  #value_arr = depth_to_value(depth_arr)
+  value_arr = 0.8*np.ones(depth_arr.shape)
+
+  for i in furthest_idx:
+    obj = OBJECTS[i]  
+    depth = depth_arr[i]
+    value = value_arr[i]
+    
+    if obj[0] == 'l':
+      idx = obj[1:3]
+      lw = obj[3]
+      rgb = colorsys.hsv_to_rgb(2/3, 1, value)
+      a = ax.plot(jts[idx,0], jts[idx,1], jts[idx,2])
+      a[0].set_linewidth(lw) 
+      a[0].set_color(rgb)
+
+    else:
+      idx = [obj[1]]
+      rgb = colorsys.hsv_to_rgb(obj[3], 1, value)
+      a = ax.plot(jts[idx,0], jts[idx,1], jts[idx,2], '.', markeredgecolor='none')
+      a[0].set_markersize(obj[2])
+      a[0].set_markerfacecolor(rgb)
+
+  ax.set_xlabel('x')
+  ax.set_ylabel('y')
+  ax.set_zlabel('z')
+  ax.set_aspect('equal')
+
+  return ax
+
 
 def plot3d(x, ax, col='b', ms=10):
   ax.plot(x[:,0], x[:,1], x[:,2], '.'+col, markersize=ms)
@@ -71,7 +192,7 @@ def plot3d(x, ax, col='b', ms=10):
   return ax
 
 
-def plot_skeleton3d(x, ax, autoscale=True, axes=True):
+def old_plot_skeleton3d(x, ax, autoscale=True, axes=True):
   if x.shape[-1] != 3:
     x = x.reshape((-1, 3))
 
