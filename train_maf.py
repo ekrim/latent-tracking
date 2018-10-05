@@ -115,7 +115,9 @@ if __name__ == '__main__':
   model.eval()
   with torch.no_grad():
     n_gen = 9 if dataset == 'hands' else 500
-    z = np.random.randn(n_gen, num_inputs).astype(np.float32)
+    z = np.random.randn(n_gen, num_inputs-4).astype(np.float32)
+    q = np.concatenate([geo.random_quaternion()[None,:] for i in range(n_gen)], axis=0)
+    z = np.concatenate([q, z], axis=1)
     z_tens = torch.from_numpy(z).to(device)
     synth = model.forward(z_tens, mode='inverse', logdets=None)[0].detach().cpu().numpy()
 

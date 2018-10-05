@@ -354,11 +354,14 @@ class FlowSequential(nn.Sequential):
           if i_block == num_blocks - 1:
             modules += [
               MADE(num_inputs, num_hidden),
-              Shuffle(num_inputs)]
+              #Shuffle(num_inputs)]
+              Reverse(num_inputs)]
           else:
             modules += [
               MADE(num_inputs, num_hidden),
-              Shuffle(num_inputs)]
+              #Shuffle(num_inputs)]
+              Reverse(num_inputs)]
+
 
         super(FlowSequential, self).__init__(*modules)
 
