@@ -1,5 +1,7 @@
 #### Applications of latent space generative models to hand pose estimation
 
+This was some research I was doing prior to Apple, and I used it as my [interview presentation](https://docs.google.com/presentation/d/1yUMwp9H8j2YN5Djd4FEbWEP6epC4dAIBl6porPwFtR0/edit?usp=sharing).
+
 ![Subject P1, sequence 5](plots/P1_5.gif)
 
 #### Instructions
